@@ -1,6 +1,6 @@
 # HelloInterview Backend
 
-![CI](https://github.com/YOUR_USERNAME/hellointerview-backend/workflows/CI/badge.svg)
+![CI](https://github.com/yhhsieh82/hellointerview-backend/workflows/CI/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 Backend service for HelloInterview system design practice platform.
