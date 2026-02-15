@@ -7,12 +7,18 @@ Backend service for HelloInterview system design practice platform.
 
 ## Project Status
 
-**Completed Steps (1-4 of the MVP Plan):**
+**Completed Steps (1-10 of the MVP Plan):**
 
 ✅ **Step 1: Project Setup** - Spring Boot 3.2.2 project with Maven, Java 21
 ✅ **Step 2: Database Configuration** - PostgreSQL with Flyway migrations
 ✅ **Step 3: Entity Classes** - JPA entities (QuestionMain, Question, QuestionType)
 ✅ **Step 4: Repository Layer** - Spring Data JPA repositories
+✅ **Step 5: Seed Data** - Sample data for 2 QuestionMains (Design Twitter, Design URL Shortener)
+✅ **Step 6-7: Service Layer (TDD)** - QuestionMainService with 3 passing unit tests
+✅ **Step 8-9: Controller Layer (TDD)** - QuestionMainController with 4 passing integration tests
+✅ **Step 10: Exception Handling** - GlobalExceptionHandler with proper error responses
+
+**Test Results:** ✅ 7/7 tests passing
 
 ## Technology Stack
 
@@ -33,19 +39,32 @@ hellointerview-backend/
 │   ├── main/
 │   │   ├── java/com/hellointerview/backend/
 │   │   │   ├── BackendApplication.java           # Main Spring Boot application
+│   │   │   ├── controller/
+│   │   │   │   └── QuestionMainController.java   # REST controller for question-mains
+│   │   │   ├── service/
+│   │   │   │   └── QuestionMainService.java      # Business logic service
+│   │   │   ├── repository/
+│   │   │   │   ├── QuestionMainRepository.java   # Repository with JOIN FETCH
+│   │   │   │   └── QuestionRepository.java       # Question repository
 │   │   │   ├── entity/
 │   │   │   │   ├── QuestionType.java            # Enum for question types
 │   │   │   │   ├── QuestionMain.java            # QuestionMain entity
 │   │   │   │   └── Question.java                # Question entity
-│   │   │   └── repository/
-│   │   │       ├── QuestionMainRepository.java  # Repository with JOIN FETCH
-│   │   │       └── QuestionRepository.java       # Question repository
+│   │   │   └── exception/
+│   │   │       ├── ResourceNotFoundException.java # Custom exception
+│   │   │       ├── ErrorResponse.java             # Error response DTO
+│   │   │       └── GlobalExceptionHandler.java    # Global exception handler
 │   │   └── resources/
 │   │       ├── application.yml                   # Application configuration
 │   │       └── db/migration/
-│   │           └── V1__Create_schema.sql         # Database schema migration
+│   │           ├── V1__Create_schema.sql         # Database schema migration
+│   │           └── V2__Insert_seed_data.sql      # Sample seed data
 │   └── test/
-│       └── java/com/hellointerview/backend/     # Test directory (ready for TDD)
+│       └── java/com/hellointerview/backend/
+│           ├── controller/
+│           │   └── QuestionMainControllerTest.java # Controller integration tests (4 tests)
+│           └── service/
+│               └── QuestionMainServiceTest.java     # Service unit tests (3 tests)
 └── resource/
     └── prds/                                     # Product requirement documents
 ```
@@ -100,7 +119,15 @@ docker run --name postgres-hellointerview \
 
 Migrations run automatically on application startup. The schema will be created in the `hellointerview` database.
 
-### 4. Run the Application
+### 4. Run Tests
+
+```bash
+./mvnw test
+```
+
+Expected: 7 tests pass (3 service tests + 4 controller tests)
+
+### 5. Run the Application
 
 ```bash
 ./mvnw spring-boot:run
@@ -134,38 +161,39 @@ export DB_PASSWORD=secure_password
 ### Other Settings
 - **Server Port**: `8000`
 
-## Next Steps (To Be Implemented)
+## Next Steps (Manual Testing Required)
 
-Following the TDD approach from the plan:
+The MVP implementation is complete! Next steps:
 
-- [ ] **Step 5**: Create seed data migration (V2__Insert_seed_data.sql)
-- [ ] **Step 6-7**: Service Layer (TDD)
-  - Write `QuestionMainServiceTest` first
-  - Implement `QuestionMainService`
-- [ ] **Step 8-9**: Controller Layer (TDD)
-  - Write `QuestionMainControllerTest` first
-  - Implement `QuestionMainController`
-- [ ] **Step 10**: Exception Handling
-  - `ResourceNotFoundException`
-  - `GlobalExceptionHandler`
-  - `ErrorResponse` DTO
-- [ ] **Step 11**: Run all tests and verify
-- [ ] **Step 12**: Manual testing with curl/Postman
+- [ ] **Step 11**: Start PostgreSQL and run the application
+- [ ] **Step 12**: Manual testing with curl/Postman to verify endpoints work end-to-end
 
-## API Specification (To Be Implemented)
+## API Specification
 
-**Endpoint**: `GET /api/v1/question-mains/{id}`
+**Endpoint**: `GET /api/v1/question-mains/{id}` ✅ **IMPLEMENTED**
 
 **Response (200 OK)**:
 ```json
 {
   "question_main_id": 1,
   "name": "Design Twitter",
-  "description": "...",
-  "write_up": "...",
+  "description": "Design a social media platform similar to Twitter...",
+  "write_up": "# Sample Answer...",
   "created_at": "2026-02-13T09:00:00Z",
   "updated_at": "2026-02-13T09:00:00Z",
-  "questions": [...]
+  "questions": [
+    {
+      "question_id": 1,
+      "question_main_id": 1,
+      "order": 1,
+      "type": "Functional Req",
+      "name": "Define Functional Requirements",
+      "description": "What are the core features?",
+      "whiteboard_section": 1,
+      "requires_recording": false,
+      "created_at": "2026-02-13T09:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -173,7 +201,15 @@ Following the TDD approach from the plan:
 ```json
 {
   "error": "Resource not found",
-  "message": "QuestionMain with id {id} does not exist"
+  "message": "QuestionMain with id 999 does not exist"
+}
+```
+
+**Error Response (400 Bad Request)** - Invalid ID format:
+```json
+{
+  "error": "Bad request",
+  "message": "Invalid value 'invalid' for parameter 'id'"
 }
 ```
 
