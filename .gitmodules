@@ -1,0 +1,3 @@
+[submodule "resource/prds"]
+	path = resource/prds
+	url = git@github.com:yhhsieh82/hellointerview-prds.git
