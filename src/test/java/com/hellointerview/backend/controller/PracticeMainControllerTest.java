@@ -45,14 +45,19 @@ class PracticeMainControllerTest {
         completedAt = Instant.parse("2026-02-13T11:30:00Z");
 
         practicingSession = new PracticeMain();
+        practicingSession.setPracticeMainId(123L);
         practicingSession.setUserId(456L);
         practicingSession.setQuestionMainId(1L);
         practicingSession.setStatus("practicing");
+        practicingSession.setStartedAt(startedAt);
 
         completedSession = new PracticeMain();
+        completedSession.setPracticeMainId(123L);
         completedSession.setUserId(456L);
         completedSession.setQuestionMainId(1L);
         completedSession.setStatus("completed");
+        completedSession.setStartedAt(startedAt);
+        completedSession.setCompletedAt(completedAt);
     }
 
     @Test

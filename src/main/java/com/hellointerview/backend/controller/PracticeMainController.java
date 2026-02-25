@@ -53,10 +53,7 @@ public class PracticeMainController {
             @PathVariable("id") Long practiceMainId,
             @RequestBody PracticeMain request
     ) {
-        PracticeMain updated = practiceMainService.updatePracticeMainStatus(
-                practiceMainId,
-                request.getStatus()
-        );
+        PracticeMain updated = practiceMainService.updatePracticeMainStatus(practiceMainId, request.getStatus());
         return ResponseEntity.ok(updated);
     }
 }

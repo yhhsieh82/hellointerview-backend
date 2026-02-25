@@ -10,4 +10,6 @@ public interface PracticeRepository extends JpaRepository<Practice, Long> {
 
     @Query("SELECT DISTINCT p.question.questionId FROM Practice p WHERE p.practiceMain.practiceMainId = :practiceMainId")
     List<Long> findDistinctQuestionIdsByPracticeMainId(Long practiceMainId);
+
+    List<Practice> findByPracticeMain_PracticeMainId(Long practiceMainId);
 }
