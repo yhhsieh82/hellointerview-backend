@@ -1,5 +1,6 @@
 package com.hellointerview.backend.controller;
 
+import com.hellointerview.backend.dto.PracticeMainResponseDto;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.service.PracticeMainService;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,29 +44,31 @@ class PracticeMainControllerTest {
         startedAt = Instant.parse("2026-02-13T09:00:00Z");
         completedAt = Instant.parse("2026-02-13T11:30:00Z");
 
-        practicingSession = PracticeMain.builder()
-                .practiceMainId(123L)
-                .userId(456L)
-                .questionMainId(1L)
-                .status("practicing")
-                .startedAt(startedAt)
-                .completedAt(null)
-                .build();
+        practicingSession = new PracticeMain();
+        practicingSession.setUserId(456L);
+        practicingSession.setQuestionMainId(1L);
+        practicingSession.setStatus("practicing");
 
-        completedSession = PracticeMain.builder()
-                .practiceMainId(123L)
-                .userId(456L)
-                .questionMainId(1L)
-                .status("completed")
-                .startedAt(startedAt)
-                .completedAt(completedAt)
-                .build();
+        completedSession = new PracticeMain();
+        completedSession.setUserId(456L);
+        completedSession.setQuestionMainId(1L);
+        completedSession.setStatus("completed");
     }
 
     @Test
-    void getActivePracticeMain_WhenExists_Returns200WithBody() throws Exception {
-        when(practiceMainService.getActivePracticeMain(456L, 1L, "practicing"))
-                .thenReturn(practicingSession);
+    void getActivePracticeMain_WhenExists_Returns200WithBodyIncludingProgress() throws Exception {
+        PracticeMainResponseDto responseDto = new PracticeMainResponseDto(
+                123L,
+                456L,
+                1L,
+                "practicing",
+                startedAt,
+                null,
+                List.of(10L, 20L)
+        );
+
+        when(practiceMainService.getActivePracticeMainWithProgress(456L, 1L, "practicing"))
+                .thenReturn(responseDto);
 
         mockMvc.perform(get("/api/v1/practice-main")
                         .param("user_id", "456")
@@ -78,10 +82,12 @@ class PracticeMainControllerTest {
                 .andExpect(jsonPath("$.question_main_id").value(1))
                 .andExpect(jsonPath("$.status").value("practicing"))
                 .andExpect(jsonPath("$.started_at").value("2026-02-13T09:00:00Z"))
-                .andExpect(jsonPath("$.completed_at").doesNotExist());
+                .andExpect(jsonPath("$.completed_at").doesNotExist())
+                .andExpect(jsonPath("$.question_ids_with_practices[0]").value(10))
+                .andExpect(jsonPath("$.question_ids_with_practices[1]").value(20));
 
         verify(practiceMainService, times(1))
-                .getActivePracticeMain(456L, 1L, "practicing");
+                .getActivePracticeMainWithProgress(456L, 1L, "practicing");
     }
 
     @Test
@@ -144,7 +150,7 @@ class PracticeMainControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
-        verify(practiceMainService, never()).getActivePracticeMain(any(), any(), any());
+        verify(practiceMainService, never()).getActivePracticeMainWithProgress(any(), any(), any());
     }
 }
 

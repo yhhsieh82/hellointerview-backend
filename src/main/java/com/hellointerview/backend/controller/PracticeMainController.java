@@ -1,5 +1,6 @@
 package com.hellointerview.backend.controller;
 
+import com.hellointerview.backend.dto.PracticeMainResponseDto;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.service.PracticeMainService;
 import org.springframework.http.HttpStatus;
@@ -18,16 +19,16 @@ public class PracticeMainController {
 
     /**
      * GET /api/v1/practice-main
-     * Retrieves the active PracticeMain for a given user and QuestionMain.
+     * Retrieves the active PracticeMain for a given user and QuestionMain, including question_ids_with_practices.
      */
     @GetMapping
-    public ResponseEntity<PracticeMain> getActivePracticeMain(
+    public ResponseEntity<PracticeMainResponseDto> getActivePracticeMain(
             @RequestParam("user_id") Long userId,
             @RequestParam("question_main_id") Long questionMainId,
             @RequestParam(value = "status", defaultValue = "practicing") String status
     ) {
-        PracticeMain practiceMain = practiceMainService.getActivePracticeMain(userId, questionMainId, status);
-        return ResponseEntity.ok(practiceMain);
+        PracticeMainResponseDto dto = practiceMainService.getActivePracticeMainWithProgress(userId, questionMainId, status);
+        return ResponseEntity.ok(dto);
     }
 
     /**

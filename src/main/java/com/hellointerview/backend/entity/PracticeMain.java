@@ -2,20 +2,12 @@ package com.hellointerview.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "practice_main")
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class PracticeMain {
 
     @Id
@@ -44,5 +36,49 @@ public class PracticeMain {
     @Column(name = "completed_at")
     @JsonProperty("completed_at")
     private Instant completedAt;
+
+    public PracticeMain() {
+        // Default constructor required by JPA
+    }
+
+    public Long getPracticeMainId() {
+        return practiceMainId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public Long getQuestionMainId() {
+        return questionMainId;
+    }
+
+    public void setQuestionMainId(Long questionMainId) {
+        this.questionMainId = questionMainId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(Instant completedAt) {
+        this.completedAt = completedAt;
+    }
 }
 
