@@ -45,6 +45,10 @@ public class PracticeMain {
         return practiceMainId;
     }
 
+    public void setPracticeMainId(Long practiceMainId) {
+        this.practiceMainId = practiceMainId;
+    }
+
     public Long getUserId() {
         return userId;
     }
@@ -71,6 +75,10 @@ public class PracticeMain {
 
     public Instant getStartedAt() {
         return startedAt;
+    }
+
+    public void setStartedAt(Instant startedAt) {
+        this.startedAt = startedAt;
     }
 
     public Instant getCompletedAt() {

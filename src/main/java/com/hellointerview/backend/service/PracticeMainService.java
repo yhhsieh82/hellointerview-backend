@@ -7,6 +7,7 @@ import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
+import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
 import com.hellointerview.backend.repository.PracticeRepository;
 import org.springframework.stereotype.Service;
