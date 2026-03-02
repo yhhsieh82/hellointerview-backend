@@ -1,5 +1,6 @@
 package com.hellointerview.backend.controller;
 
+import com.hellointerview.backend.dto.QuestionMainSummaryDto;
 import com.hellointerview.backend.entity.Question;
 import com.hellointerview.backend.entity.QuestionMain;
 import com.hellointerview.backend.entity.QuestionType;
@@ -15,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
@@ -74,6 +76,44 @@ class QuestionMainControllerTest {
                 .updatedAt(testTimestamp)
                 .questions(new ArrayList<>(mockQuestions))
                 .build();
+    }
+
+    @Test
+    void getAllQuestionMains_WhenNonEmpty_Returns200WithListAndSnakeCaseFields() throws Exception {
+        List<QuestionMainSummaryDto> dtos = List.of(
+                new QuestionMainSummaryDto(1L, "Design Twitter", "Design a social media platform...", testTimestamp, testTimestamp),
+                new QuestionMainSummaryDto(2L, "Design URL Shortener", "Shorten and redirect URLs.", testTimestamp, testTimestamp)
+        );
+        when(questionMainService.getAllQuestionMains()).thenReturn(dtos);
+
+        mockMvc.perform(get("/api/v1/question-mains").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].question_main_id").value(1))
+                .andExpect(jsonPath("$[0].name").value("Design Twitter"))
+                .andExpect(jsonPath("$[0].description").value("Design a social media platform..."))
+                .andExpect(jsonPath("$[0].created_at").value("2026-02-13T09:00:00Z"))
+                .andExpect(jsonPath("$[0].updated_at").value("2026-02-13T09:00:00Z"))
+                .andExpect(jsonPath("$[1].question_main_id").value(2))
+                .andExpect(jsonPath("$[1].name").value("Design URL Shortener"))
+                .andExpect(jsonPath("$[1].description").value("Shorten and redirect URLs."));
+
+        verify(questionMainService, times(1)).getAllQuestionMains();
+    }
+
+    @Test
+    void getAllQuestionMains_WhenEmpty_Returns200WithEmptyArray() throws Exception {
+        when(questionMainService.getAllQuestionMains()).thenReturn(Collections.emptyList());
+
+        mockMvc.perform(get("/api/v1/question-mains").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$", hasSize(0)));
+
+        verify(questionMainService, times(1)).getAllQuestionMains();
     }
 
     @Test

@@ -1,9 +1,12 @@
 package com.hellointerview.backend.controller;
 
+import com.hellointerview.backend.dto.QuestionMainSummaryDto;
 import com.hellointerview.backend.entity.QuestionMain;
 import com.hellointerview.backend.service.QuestionMainService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/question-mains")
@@ -13,6 +16,16 @@ public class QuestionMainController {
 
     public QuestionMainController(QuestionMainService questionMainService) {
         this.questionMainService = questionMainService;
+    }
+
+    /**
+     * GET /api/v1/question-mains
+     * Returns all available problems (QuestionMains) as summaries for the frontend problem list.
+     */
+    @GetMapping
+    public ResponseEntity<List<QuestionMainSummaryDto>> getAllQuestionMains() {
+        List<QuestionMainSummaryDto> list = questionMainService.getAllQuestionMains();
+        return ResponseEntity.ok(list);
     }
 
     /**
