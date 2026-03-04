@@ -14,7 +14,9 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,6 +63,9 @@ class PracticeMainServiceTest {
         active.setQuestionMainId(1L);
         active.setStatus("practicing");
         active.setStartedAt(startedAt);
+        Map<String, Object> whiteboard = new LinkedHashMap<>();
+        whiteboard.put("section_1", Collections.emptyMap());
+        active.setWhiteboardContent(whiteboard);
 
         Practice practice = new Practice();
         practice.setPracticeId(10L);
@@ -77,10 +82,37 @@ class PracticeMainServiceTest {
         assertEquals(practiceMainId, completed.getPracticeMainId());
         assertEquals(startedAt, completed.getStartedAt());
         assertNotNull(completed.getCompletedAt());
+        assertEquals(whiteboard, completed.getWhiteboardContent());
 
         verify(practiceMainHistoryRepository).save(any(PracticeMainHistory.class));
         verify(practiceHistoryRepository).saveAll(any(List.class));
         verify(practiceMainRepository).delete(eq(active));
+    }
+
+    @Test
+    void updatePracticeMain_WhenWhiteboardContentNull_DoesNotOverrideExisting() {
+        Long practiceMainId = 123L;
+        Instant startedAt = Instant.parse("2026-02-13T09:00:00Z");
+
+        PracticeMain existing = new PracticeMain();
+        existing.setPracticeMainId(practiceMainId);
+        existing.setUserId(456L);
+        existing.setQuestionMainId(1L);
+        existing.setStatus("practicing");
+        existing.setStartedAt(startedAt);
+
+        Map<String, Object> originalWhiteboard = new LinkedHashMap<>();
+        originalWhiteboard.put("section_1", Collections.singletonMap("type", "diagram"));
+        existing.setWhiteboardContent(originalWhiteboard);
+
+        when(practiceMainRepository.findById(practiceMainId)).thenReturn(Optional.of(existing));
+        when(practiceMainRepository.save(any(PracticeMain.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PracticeMain updated = practiceMainService.updatePracticeMain(practiceMainId, "practicing", null);
+
+        assertEquals("practicing", updated.getStatus());
+        assertEquals(originalWhiteboard, updated.getWhiteboardContent());
     }
 
     @Test
@@ -98,6 +130,7 @@ class PracticeMainServiceTest {
                 .status("completed")
                 .startedAt(startedAt)
                 .completedAt(completedAt)
+                .whiteboardContent(new LinkedHashMap<>())
                 .build();
 
         when(practiceMainHistoryRepository.findById(practiceMainId)).thenReturn(Optional.of(history));

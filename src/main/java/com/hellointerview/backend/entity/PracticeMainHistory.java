@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @Table(name = "practice_main_history")
@@ -37,5 +38,8 @@ public class PracticeMainHistory {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "whiteboard_content", columnDefinition = "jsonb")
+    private Map<String, Object> whiteboardContent;
 }
 

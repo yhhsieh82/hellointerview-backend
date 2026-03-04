@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -45,6 +48,7 @@ public class PracticeMainService {
     @Transactional(readOnly = true)
     public PracticeMainResponseDto getActivePracticeMainWithProgress(Long userId, Long questionMainId, String status) {
         PracticeMain practiceMain = getActivePracticeMain(userId, questionMainId, status);
+        ensureDefaultWhiteboardContent(practiceMain);
         List<Long> questionIdsWithPractices = getQuestionIdsWithPractices(practiceMain.getPracticeMainId());
         return toResponseDto(practiceMain, questionIdsWithPractices);
     }
@@ -57,7 +61,8 @@ public class PracticeMainService {
                 practiceMain.getStatus(),
                 practiceMain.getStartedAt(),
                 practiceMain.getCompletedAt(),
-                questionIdsWithPractices
+                questionIdsWithPractices,
+                practiceMain.getWhiteboardContent()
         );
     }
 
@@ -75,12 +80,21 @@ public class PracticeMainService {
         practiceMain.setUserId(userId);
         practiceMain.setQuestionMainId(questionMainId);
         practiceMain.setStatus(DEFAULT_STATUS_PRACTICING);
+        practiceMain.setWhiteboardContent(createDefaultWhiteboardContent());
 
         return practiceMainRepository.save(practiceMain);
     }
 
-    public PracticeMain updatePracticeMainStatus(Long practiceMainId, String status) {
+    public PracticeMain updatePracticeMain(Long practiceMainId, String status, Map<String, Object> whiteboardContent) {
         if ("completed".equals(status)) {
+            if (whiteboardContent != null) {
+                PracticeMain practiceMain = practiceMainRepository.findById(practiceMainId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "PracticeMain with id " + practiceMainId + " does not exist"
+                        ));
+                practiceMain.setWhiteboardContent(whiteboardContent);
+                practiceMainRepository.save(practiceMain);
+            }
             return completePracticeSession(practiceMainId);
         }
 
@@ -89,8 +103,14 @@ public class PracticeMainService {
                         "PracticeMain with id " + practiceMainId + " does not exist"
                 ));
 
-        practiceMain.setStatus(status);
-        practiceMain.setCompletedAt(null);
+        if (whiteboardContent != null) {
+            practiceMain.setWhiteboardContent(whiteboardContent);
+        }
+
+        if (status != null && !status.isBlank()) {
+            practiceMain.setStatus(status);
+            practiceMain.setCompletedAt(null);
+        }
 
         return practiceMainRepository.save(practiceMain);
     }
@@ -123,6 +143,7 @@ public class PracticeMainService {
                 .status("completed")
                 .startedAt(practiceMain.getStartedAt())
                 .completedAt(completedAt)
+                .whiteboardContent(practiceMain.getWhiteboardContent())
                 .build();
 
         practiceMainHistoryRepository.save(practiceMainHistory);
@@ -149,6 +170,7 @@ public class PracticeMainService {
         completed.setStatus("completed");
         completed.setStartedAt(practiceMain.getStartedAt());
         completed.setCompletedAt(completedAt);
+        completed.setWhiteboardContent(practiceMain.getWhiteboardContent());
 
         return completed;
     }
@@ -166,8 +188,32 @@ public class PracticeMainService {
         completed.setStatus(history.getStatus());
         completed.setStartedAt(history.getStartedAt());
         completed.setCompletedAt(history.getCompletedAt());
+        completed.setWhiteboardContent(history.getWhiteboardContent());
 
         return completed;
+    }
+
+    private void ensureDefaultWhiteboardContent(PracticeMain practiceMain) {
+        if (practiceMain.getWhiteboardContent() == null) {
+            practiceMain.setWhiteboardContent(createDefaultWhiteboardContent());
+            practiceMainRepository.save(practiceMain);
+        }
+    }
+
+    private static Map<String, Object> createDefaultWhiteboardContent() {
+        Map<String, Object> root = new LinkedHashMap<>();
+
+        for (int i = 1; i <= 5; i++) {
+            Map<String, Object> section = new LinkedHashMap<>();
+            section.put("type", "diagram");
+            section.put("version", "1.0");
+            section.put("elements", new ArrayList<>());
+            section.put("appState", new LinkedHashMap<String, Object>());
+            section.put("files", new LinkedHashMap<String, Object>());
+            root.put("section_" + i, section);
+        }
+
+        return root;
     }
 }
 

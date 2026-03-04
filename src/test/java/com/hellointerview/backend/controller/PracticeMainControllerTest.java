@@ -12,7 +12,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,11 +40,15 @@ class PracticeMainControllerTest {
     private PracticeMain completedSession;
     private Instant startedAt;
     private Instant completedAt;
+    private Map<String, Object> defaultWhiteboard;
 
     @BeforeEach
     void setUp() {
         startedAt = Instant.parse("2026-02-13T09:00:00Z");
         completedAt = Instant.parse("2026-02-13T11:30:00Z");
+
+        defaultWhiteboard = new LinkedHashMap<>();
+        defaultWhiteboard.put("section_1", new LinkedHashMap<String, Object>());
 
         practicingSession = new PracticeMain();
         practicingSession.setPracticeMainId(123L);
@@ -50,6 +56,7 @@ class PracticeMainControllerTest {
         practicingSession.setQuestionMainId(1L);
         practicingSession.setStatus("practicing");
         practicingSession.setStartedAt(startedAt);
+        practicingSession.setWhiteboardContent(defaultWhiteboard);
 
         completedSession = new PracticeMain();
         completedSession.setPracticeMainId(123L);
@@ -58,6 +65,7 @@ class PracticeMainControllerTest {
         completedSession.setStatus("completed");
         completedSession.setStartedAt(startedAt);
         completedSession.setCompletedAt(completedAt);
+        completedSession.setWhiteboardContent(defaultWhiteboard);
     }
 
     @Test
@@ -69,7 +77,8 @@ class PracticeMainControllerTest {
                 "practicing",
                 startedAt,
                 null,
-                List.of(10L, 20L)
+                List.of(10L, 20L),
+                defaultWhiteboard
         );
 
         when(practiceMainService.getActivePracticeMainWithProgress(456L, 1L, "practicing"))
@@ -88,6 +97,7 @@ class PracticeMainControllerTest {
                 .andExpect(jsonPath("$.status").value("practicing"))
                 .andExpect(jsonPath("$.started_at").value("2026-02-13T09:00:00Z"))
                 .andExpect(jsonPath("$.completed_at").doesNotExist())
+                .andExpect(jsonPath("$.whiteboard_content").isMap())
                 .andExpect(jsonPath("$.question_ids_with_practices[0]").value(10))
                 .andExpect(jsonPath("$.question_ids_with_practices[1]").value(20));
 
@@ -125,7 +135,7 @@ class PracticeMainControllerTest {
 
     @Test
     void updatePracticeMainStatus_WhenCompleted_Returns200WithCompletedSession() throws Exception {
-        when(practiceMainService.updatePracticeMainStatus(eq(123L), eq("completed")))
+        when(practiceMainService.updatePracticeMain(eq(123L), eq("completed"), any()))
                 .thenReturn(completedSession);
 
         String requestBody = """
@@ -141,10 +151,11 @@ class PracticeMainControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.practice_main_id").value(123))
                 .andExpect(jsonPath("$.status").value("completed"))
-                .andExpect(jsonPath("$.completed_at").value("2026-02-13T11:30:00Z"));
+                .andExpect(jsonPath("$.completed_at").value("2026-02-13T11:30:00Z"))
+                .andExpect(jsonPath("$.whiteboard_content").isMap());
 
         verify(practiceMainService, times(1))
-                .updatePracticeMainStatus(123L, "completed");
+                .updatePracticeMain(eq(123L), eq("completed"), any());
     }
 
     @Test

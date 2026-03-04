@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public class PracticeMainResponseDto {
 
@@ -28,6 +29,9 @@ public class PracticeMainResponseDto {
     @JsonProperty("question_ids_with_practices")
     private List<Long> questionIdsWithPractices;
 
+    @JsonProperty("whiteboard_content")
+    private Map<String, Object> whiteboardContent;
+
     public PracticeMainResponseDto() {
         // Default constructor for Jackson
     }
@@ -38,7 +42,8 @@ public class PracticeMainResponseDto {
                                    String status,
                                    Instant startedAt,
                                    Instant completedAt,
-                                   List<Long> questionIdsWithPractices) {
+                                   List<Long> questionIdsWithPractices,
+                                   Map<String, Object> whiteboardContent) {
         this.practiceMainId = practiceMainId;
         this.userId = userId;
         this.questionMainId = questionMainId;
@@ -46,6 +51,7 @@ public class PracticeMainResponseDto {
         this.startedAt = startedAt;
         this.completedAt = completedAt;
         this.questionIdsWithPractices = questionIdsWithPractices;
+        this.whiteboardContent = whiteboardContent;
     }
 
     public Long getPracticeMainId() {
@@ -78,6 +84,14 @@ public class PracticeMainResponseDto {
 
     public void setQuestionIdsWithPractices(List<Long> questionIdsWithPractices) {
         this.questionIdsWithPractices = questionIdsWithPractices;
+    }
+
+    public Map<String, Object> getWhiteboardContent() {
+        return whiteboardContent;
+    }
+
+    public void setWhiteboardContent(Map<String, Object> whiteboardContent) {
+        this.whiteboardContent = whiteboardContent;
     }
 }
 

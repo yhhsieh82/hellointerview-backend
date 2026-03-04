@@ -1,10 +1,16 @@
 package com.hellointerview.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @Table(name = "practice_main")
@@ -36,6 +42,10 @@ public class PracticeMain {
     @Column(name = "completed_at")
     @JsonProperty("completed_at")
     private Instant completedAt;
+
+    @Column(name = "whiteboard_content", columnDefinition = "jsonb")
+    @JsonProperty("whiteboard_content")
+    private Map<String, Object> whiteboardContent;
 
     public PracticeMain() {
         // Default constructor required by JPA
@@ -87,6 +97,14 @@ public class PracticeMain {
 
     public void setCompletedAt(Instant completedAt) {
         this.completedAt = completedAt;
+    }
+
+    public Map<String, Object> getWhiteboardContent() {
+        return whiteboardContent;
+    }
+
+    public void setWhiteboardContent(Map<String, Object> whiteboardContent) {
+        this.whiteboardContent = whiteboardContent;
     }
 }
 
