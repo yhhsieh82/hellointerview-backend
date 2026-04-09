@@ -1,6 +1,8 @@
 package com.hellointerview.backend.controller;
 
 import com.hellointerview.backend.dto.PracticeTranscriptStateResponse;
+import com.hellointerview.backend.dto.PracticeSubmitRequest;
+import com.hellointerview.backend.dto.PracticeSubmitResponse;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveRequest;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveResponse;
 import com.hellointerview.backend.service.PracticeService;
@@ -36,6 +38,14 @@ public class PracticeController {
             @PathVariable("practiceId") Long practiceId
     ) {
         PracticeTranscriptStateResponse response = practiceService.getPracticeTranscriptState(practiceId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping
+    public ResponseEntity<PracticeSubmitResponse> submitPractice(
+            @RequestBody PracticeSubmitRequest request
+    ) {
+        PracticeSubmitResponse response = practiceService.submitPractice(request);
         return ResponseEntity.ok(response);
     }
 }

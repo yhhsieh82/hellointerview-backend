@@ -1,6 +1,8 @@
 package com.hellointerview.backend.service;
 
 import com.hellointerview.backend.dto.PracticeTranscriptStateResponse;
+import com.hellointerview.backend.dto.PracticeSubmitRequest;
+import com.hellointerview.backend.dto.PracticeSubmitResponse;
 import com.hellointerview.backend.dto.TranscriptSegmentDto;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveRequest;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveResponse;
@@ -63,6 +65,37 @@ public class PracticeService {
         );
     }
 
+    public PracticeSubmitResponse submitPractice(PracticeSubmitRequest request) {
+        validateSubmitRequest(request);
+        Practice practice = findPracticeById(request.getPracticeId());
+        validatePracticeRelationships(practice, request);
+
+        boolean audioRequired = Boolean.TRUE.equals(practice.getQuestion().getRequiresRecording());
+        List<PracticeTranscriptSegment> orderedSegments =
+                practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(practice.getPracticeId());
+        int derivedTotalDurationSeconds = orderedSegments.stream()
+                .mapToInt(PracticeTranscriptSegment::getDurationSeconds)
+                .sum();
+        String derivedCombinedTranscript = buildCombinedTranscript(orderedSegments);
+
+        validateTranscriptForSubmission(
+                audioRequired,
+                request.getCombinedTranscript(),
+                request.getTotalDurationSeconds(),
+                derivedCombinedTranscript,
+                derivedTotalDurationSeconds
+        );
+
+        return new PracticeSubmitResponse(
+                practice.getPracticeId(),
+                practice.getPracticeMain().getPracticeMainId(),
+                practice.getQuestion().getQuestionId(),
+                audioRequired,
+                request.getCombinedTranscript(),
+                request.getTotalDurationSeconds()
+        );
+    }
+
     @Transactional(readOnly = true)
     public PracticeTranscriptStateResponse getPracticeTranscriptState(Long practiceId) {
         Practice practice = findPracticeById(practiceId);
@@ -104,6 +137,61 @@ public class PracticeService {
         }
         if (request.getDurationSeconds() == null || request.getDurationSeconds() <= 0) {
             throw new BadRequestException("Duration seconds must be a positive number");
+        }
+    }
+
+    private static void validateSubmitRequest(PracticeSubmitRequest request) {
+        if (request == null) {
+            throw new BadRequestException("Request body is required");
+        }
+        if (request.getPracticeId() == null) {
+            throw new BadRequestException("practice_id is required");
+        }
+        if (request.getPracticeMainId() == null) {
+            throw new BadRequestException("practice_main_id is required");
+        }
+        if (request.getQuestionId() == null) {
+            throw new BadRequestException("question_id is required");
+        }
+    }
+
+    private static void validatePracticeRelationships(Practice practice, PracticeSubmitRequest request) {
+        Long actualPracticeMainId = practice.getPracticeMain().getPracticeMainId();
+        if (!actualPracticeMainId.equals(request.getPracticeMainId())) {
+            throw new BadRequestException("practice_main_id does not match practice_id");
+        }
+        Long actualQuestionId = practice.getQuestion().getQuestionId();
+        if (!actualQuestionId.equals(request.getQuestionId())) {
+            throw new BadRequestException("question_id does not match practice_id");
+        }
+    }
+
+    private static void validateTranscriptForSubmission(boolean audioRequired,
+                                                        String combinedTranscript,
+                                                        Integer totalDurationSeconds,
+                                                        String derivedCombinedTranscript,
+                                                        int derivedTotalDurationSeconds) {
+        boolean transcriptProvided = combinedTranscript != null || totalDurationSeconds != null;
+        if (!audioRequired && !transcriptProvided) {
+            return;
+        }
+
+        if (combinedTranscript == null || combinedTranscript.isBlank()) {
+            throw new BadRequestException("Spoken explanation is required for this question type");
+        }
+        if (totalDurationSeconds == null || totalDurationSeconds <= 0) {
+            throw new BadRequestException("total_duration_seconds must be a positive number");
+        }
+        if (totalDurationSeconds > MAX_TOTAL_DURATION_SECONDS) {
+            throw new BadRequestException("Total speaking time cannot exceed 600 seconds");
+        }
+
+        String normalizedSubmittedTranscript = combinedTranscript.trim();
+        if (!normalizedSubmittedTranscript.equals(derivedCombinedTranscript)) {
+            throw new BadRequestException("combined_transcript does not match saved transcript segments");
+        }
+        if (totalDurationSeconds != derivedTotalDurationSeconds) {
+            throw new BadRequestException("total_duration_seconds does not match saved transcript segments");
         }
     }
 

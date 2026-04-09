@@ -1,5 +1,6 @@
 package com.hellointerview.backend.controller;
 
+import com.hellointerview.backend.dto.PracticeSubmitResponse;
 import com.hellointerview.backend.dto.PracticeTranscriptStateResponse;
 import com.hellointerview.backend.dto.TranscriptSegmentDto;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveResponse;
@@ -125,5 +126,59 @@ class PracticeControllerTest {
                 .andExpect(jsonPath("$.transcript_segments[1].segment_order").value(2))
                 .andExpect(jsonPath("$.total_duration_seconds").value(150))
                 .andExpect(jsonPath("$.combined_transcript").value("First segment Second segment"));
+    }
+
+    @Test
+    void submitPractice_WhenValid_Returns200() throws Exception {
+        PracticeSubmitResponse response = new PracticeSubmitResponse(
+                789L,
+                333L,
+                456L,
+                true,
+                "First segment Second segment",
+                150
+        );
+        when(practiceService.submitPractice(any())).thenReturn(response);
+
+        String requestBody = """
+                {
+                  "practice_id": 789,
+                  "practice_main_id": 333,
+                  "question_id": 456,
+                  "whiteboard_content": {},
+                  "combined_transcript": "First segment Second segment",
+                  "total_duration_seconds": 150
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/practice")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.practice_id").value(789))
+                .andExpect(jsonPath("$.practice_main_id").value(333))
+                .andExpect(jsonPath("$.question_id").value(456))
+                .andExpect(jsonPath("$.audio_required").value(true))
+                .andExpect(jsonPath("$.accepted_total_duration_seconds").value(150));
+    }
+
+    @Test
+    void submitPractice_WhenValidationFails_Returns400() throws Exception {
+        when(practiceService.submitPractice(any()))
+                .thenThrow(new BadRequestException("Spoken explanation is required for this question type"));
+
+        String requestBody = """
+                {
+                  "practice_id": 789,
+                  "practice_main_id": 333,
+                  "question_id": 456
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/practice")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Validation failed"));
     }
 }
