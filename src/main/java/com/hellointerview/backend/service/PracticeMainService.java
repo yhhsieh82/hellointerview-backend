@@ -5,11 +5,15 @@ import com.hellointerview.backend.entity.Practice;
 import com.hellointerview.backend.entity.PracticeHistory;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
+import com.hellointerview.backend.entity.PracticeTranscriptSegment;
+import com.hellointerview.backend.entity.PracticeTranscriptSegmentHistory;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
 import com.hellointerview.backend.repository.PracticeRepository;
+import com.hellointerview.backend.repository.PracticeTranscriptSegmentHistoryRepository;
+import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,15 +33,21 @@ public class PracticeMainService {
     private final PracticeRepository practiceRepository;
     private final PracticeHistoryRepository practiceHistoryRepository;
     private final PracticeMainHistoryRepository practiceMainHistoryRepository;
+    private final PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
+    private final PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
 
     public PracticeMainService(PracticeMainRepository practiceMainRepository,
                                PracticeRepository practiceRepository,
                                PracticeHistoryRepository practiceHistoryRepository,
-                               PracticeMainHistoryRepository practiceMainHistoryRepository) {
+                               PracticeMainHistoryRepository practiceMainHistoryRepository,
+                               PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository,
+                               PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository) {
         this.practiceMainRepository = practiceMainRepository;
         this.practiceRepository = practiceRepository;
         this.practiceHistoryRepository = practiceHistoryRepository;
         this.practiceMainHistoryRepository = practiceMainHistoryRepository;
+        this.practiceTranscriptSegmentRepository = practiceTranscriptSegmentRepository;
+        this.practiceTranscriptSegmentHistoryRepository = practiceTranscriptSegmentHistoryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -160,6 +170,7 @@ public class PracticeMainService {
                 .toList();
 
         practiceHistoryRepository.saveAll(practiceHistories);
+        archiveTranscriptSegments(practices, practiceHistories);
 
         practiceMainRepository.delete(practiceMain);
 
@@ -214,6 +225,38 @@ public class PracticeMainService {
         }
 
         return root;
+    }
+
+    private void archiveTranscriptSegments(List<Practice> practices, List<PracticeHistory> practiceHistories) {
+        if (practices.isEmpty()) {
+            return;
+        }
+
+        List<Long> practiceIds = practices.stream()
+                .map(Practice::getPracticeId)
+                .toList();
+        List<PracticeTranscriptSegment> transcriptSegments =
+                practiceTranscriptSegmentRepository.findByPractice_PracticeIdIn(practiceIds);
+
+        if (transcriptSegments.isEmpty()) {
+            return;
+        }
+
+        Map<Long, PracticeHistory> historyByPracticeId = practiceHistories.stream()
+                .collect(java.util.stream.Collectors.toMap(PracticeHistory::getPracticeId, history -> history));
+
+        List<PracticeTranscriptSegmentHistory> transcriptSegmentHistories = transcriptSegments.stream()
+                .map(segment -> PracticeTranscriptSegmentHistory.builder()
+                        .segmentId(segment.getSegmentId())
+                        .practice(historyByPracticeId.get(segment.getPractice().getPracticeId()))
+                        .segmentOrder(segment.getSegmentOrder())
+                        .transcriptText(segment.getTranscriptText())
+                        .durationSeconds(segment.getDurationSeconds())
+                        .createdAt(segment.getCreatedAt())
+                        .build())
+                .toList();
+
+        practiceTranscriptSegmentHistoryRepository.saveAll(transcriptSegmentHistories);
     }
 }
 

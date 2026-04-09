@@ -9,6 +9,8 @@ import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
 import com.hellointerview.backend.repository.PracticeRepository;
+import com.hellointerview.backend.repository.PracticeTranscriptSegmentHistoryRepository;
+import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,6 +36,8 @@ class PracticeMainServiceTest {
     private PracticeRepository practiceRepository;
     private PracticeHistoryRepository practiceHistoryRepository;
     private PracticeMainHistoryRepository practiceMainHistoryRepository;
+    private PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
+    private PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
 
     private PracticeMainService practiceMainService;
 
@@ -43,12 +47,16 @@ class PracticeMainServiceTest {
         practiceRepository = mock(PracticeRepository.class);
         practiceHistoryRepository = mock(PracticeHistoryRepository.class);
         practiceMainHistoryRepository = mock(PracticeMainHistoryRepository.class);
+        practiceTranscriptSegmentRepository = mock(PracticeTranscriptSegmentRepository.class);
+        practiceTranscriptSegmentHistoryRepository = mock(PracticeTranscriptSegmentHistoryRepository.class);
 
         practiceMainService = new PracticeMainService(
                 practiceMainRepository,
                 practiceRepository,
                 practiceHistoryRepository,
-                practiceMainHistoryRepository
+                practiceMainHistoryRepository,
+                practiceTranscriptSegmentRepository,
+                practiceTranscriptSegmentHistoryRepository
         );
     }
 
@@ -75,6 +83,8 @@ class PracticeMainServiceTest {
         when(practiceMainRepository.findById(practiceMainId)).thenReturn(Optional.of(active));
         when(practiceRepository.findByPracticeMain_PracticeMainId(practiceMainId))
                 .thenReturn(Collections.singletonList(practice));
+        when(practiceTranscriptSegmentRepository.findByPractice_PracticeIdIn(List.of(10L)))
+                .thenReturn(Collections.emptyList());
 
         PracticeMain completed = practiceMainService.completePracticeSession(practiceMainId);
 

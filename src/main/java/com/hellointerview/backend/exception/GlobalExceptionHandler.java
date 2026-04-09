@@ -41,6 +41,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle BadRequestException (400 Bad Request)
+     */
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException ex) {
+        logger.warn("Validation failed: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse("Validation failed", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
      * Handle generic exceptions (500 Internal Server Error)
      */
     @ExceptionHandler(Exception.class)

@@ -8,6 +8,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.Map;
@@ -43,6 +45,7 @@ public class PracticeMain {
     @JsonProperty("completed_at")
     private Instant completedAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "whiteboard_content", columnDefinition = "jsonb")
     @JsonProperty("whiteboard_content")
     private Map<String, Object> whiteboardContent;
