@@ -26,8 +26,8 @@ public class PracticeMainResponseDto {
     @JsonProperty("completed_at")
     private Instant completedAt;
 
-    @JsonProperty("question_ids_with_practices")
-    private List<Long> questionIdsWithPractices;
+    @JsonProperty("question_ids_with_feedback")
+    private List<Long> questionIdsWithFeedback;
 
     @JsonProperty("whiteboard_content")
     private Map<String, Object> whiteboardContent;
@@ -42,7 +42,7 @@ public class PracticeMainResponseDto {
                                    String status,
                                    Instant startedAt,
                                    Instant completedAt,
-                                   List<Long> questionIdsWithPractices,
+                                   List<Long> questionIdsWithFeedback,
                                    Map<String, Object> whiteboardContent) {
         this.practiceMainId = practiceMainId;
         this.userId = userId;
@@ -50,7 +50,7 @@ public class PracticeMainResponseDto {
         this.status = status;
         this.startedAt = startedAt;
         this.completedAt = completedAt;
-        this.questionIdsWithPractices = questionIdsWithPractices;
+        this.questionIdsWithFeedback = questionIdsWithFeedback;
         this.whiteboardContent = whiteboardContent;
     }
 
@@ -78,12 +78,12 @@ public class PracticeMainResponseDto {
         return completedAt;
     }
 
-    public List<Long> getQuestionIdsWithPractices() {
-        return questionIdsWithPractices;
+    public List<Long> getQuestionIdsWithFeedback() {
+        return questionIdsWithFeedback;
     }
 
-    public void setQuestionIdsWithPractices(List<Long> questionIdsWithPractices) {
-        this.questionIdsWithPractices = questionIdsWithPractices;
+    public void setQuestionIdsWithFeedback(List<Long> questionIdsWithFeedback) {
+        this.questionIdsWithFeedback = questionIdsWithFeedback;
     }
 
     public Map<String, Object> getWhiteboardContent() {

@@ -19,6 +19,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -145,9 +146,7 @@ class PracticeControllerTest {
                   "practice_id": 789,
                   "practice_main_id": 333,
                   "question_id": 456,
-                  "whiteboard_content": {},
-                  "combined_transcript": "First segment Second segment",
-                  "total_duration_seconds": 150
+                  "whiteboard_content": {}
                 }
                 """;
 
@@ -163,22 +162,22 @@ class PracticeControllerTest {
     }
 
     @Test
-    void submitPractice_WhenValidationFails_Returns400() throws Exception {
-        when(practiceService.submitPractice(any()))
-                .thenThrow(new BadRequestException("Spoken explanation is required for this question type"));
-
+    void submitPractice_WhenClientSendsAggregateFields_Returns400() throws Exception {
         String requestBody = """
                 {
                   "practice_id": 789,
                   "practice_main_id": 333,
-                  "question_id": 456
+                  "question_id": 456,
+                  "combined_transcript": "First segment Second segment",
+                  "total_duration_seconds": 150
                 }
                 """;
 
         mockMvc.perform(post("/api/v1/practice")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Validation failed"));
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(practiceService);
     }
 }

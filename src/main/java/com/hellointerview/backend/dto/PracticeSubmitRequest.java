@@ -1,9 +1,11 @@
 package com.hellointerview.backend.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = false)
 public class PracticeSubmitRequest {
 
     @JsonProperty("practice_id")
@@ -17,12 +19,6 @@ public class PracticeSubmitRequest {
 
     @JsonProperty("whiteboard_content")
     private Map<String, Object> whiteboardContent;
-
-    @JsonProperty("combined_transcript")
-    private String combinedTranscript;
-
-    @JsonProperty("total_duration_seconds")
-    private Integer totalDurationSeconds;
 
     public Long getPracticeId() {
         return practiceId;
@@ -54,21 +50,5 @@ public class PracticeSubmitRequest {
 
     public void setWhiteboardContent(Map<String, Object> whiteboardContent) {
         this.whiteboardContent = whiteboardContent;
-    }
-
-    public String getCombinedTranscript() {
-        return combinedTranscript;
-    }
-
-    public void setCombinedTranscript(String combinedTranscript) {
-        this.combinedTranscript = combinedTranscript;
-    }
-
-    public Integer getTotalDurationSeconds() {
-        return totalDurationSeconds;
-    }
-
-    public void setTotalDurationSeconds(Integer totalDurationSeconds) {
-        this.totalDurationSeconds = totalDurationSeconds;
     }
 }

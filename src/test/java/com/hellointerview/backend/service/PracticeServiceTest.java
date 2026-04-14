@@ -143,8 +143,6 @@ class PracticeServiceTest {
         request.setPracticeId(789L);
         request.setPracticeMainId(333L);
         request.setQuestionId(456L);
-        request.setCombinedTranscript("First segment Second segment");
-        request.setTotalDurationSeconds(150);
 
         PracticeTranscriptSegment segment1 = PracticeTranscriptSegment.builder()
                 .segmentOrder(1)
@@ -166,6 +164,7 @@ class PracticeServiceTest {
         assertEquals(789L, response.getPracticeId());
         assertEquals(333L, response.getPracticeMainId());
         assertEquals(456L, response.getQuestionId());
+        assertEquals("First segment Second segment", response.getAcceptedCombinedTranscript());
         assertEquals(150, response.getAcceptedTotalDurationSeconds());
     }
 
@@ -185,7 +184,7 @@ class PracticeServiceTest {
     }
 
     @Test
-    void submitPractice_WhenAudioRequiredAndTranscriptMissing_ThrowsBadRequest() {
+    void submitPractice_WhenAudioRequiredAndTranscriptMissing_AllowsSubmission() {
         Practice practice = buildPractice(789L, 333L, 456L, true);
         PracticeSubmitRequest request = new PracticeSubmitRequest();
         request.setPracticeId(789L);
@@ -196,7 +195,9 @@ class PracticeServiceTest {
         when(practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(789L))
                 .thenReturn(List.of());
 
-        assertThrows(BadRequestException.class, () -> practiceService.submitPractice(request));
+        PracticeSubmitResponse response = assertDoesNotThrow(() -> practiceService.submitPractice(request));
+        assertEquals("", response.getAcceptedCombinedTranscript());
+        assertEquals(0, response.getAcceptedTotalDurationSeconds());
     }
 
     @Test

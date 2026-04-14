@@ -70,7 +70,6 @@ public class PracticeService {
         Practice practice = findPracticeById(request.getPracticeId());
         validatePracticeRelationships(practice, request);
 
-        boolean audioRequired = Boolean.TRUE.equals(practice.getQuestion().getRequiresRecording());
         List<PracticeTranscriptSegment> orderedSegments =
                 practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(practice.getPracticeId());
         int derivedTotalDurationSeconds = orderedSegments.stream()
@@ -78,21 +77,15 @@ public class PracticeService {
                 .sum();
         String derivedCombinedTranscript = buildCombinedTranscript(orderedSegments);
 
-        validateTranscriptForSubmission(
-                audioRequired,
-                request.getCombinedTranscript(),
-                request.getTotalDurationSeconds(),
-                derivedCombinedTranscript,
-                derivedTotalDurationSeconds
-        );
+        boolean audioRequired = Boolean.TRUE.equals(practice.getQuestion().getRequiresRecording());
 
         return new PracticeSubmitResponse(
                 practice.getPracticeId(),
                 practice.getPracticeMain().getPracticeMainId(),
                 practice.getQuestion().getQuestionId(),
                 audioRequired,
-                request.getCombinedTranscript(),
-                request.getTotalDurationSeconds()
+                derivedCombinedTranscript,
+                derivedTotalDurationSeconds
         );
     }
 
@@ -163,35 +156,6 @@ public class PracticeService {
         Long actualQuestionId = practice.getQuestion().getQuestionId();
         if (!actualQuestionId.equals(request.getQuestionId())) {
             throw new BadRequestException("question_id does not match practice_id");
-        }
-    }
-
-    private static void validateTranscriptForSubmission(boolean audioRequired,
-                                                        String combinedTranscript,
-                                                        Integer totalDurationSeconds,
-                                                        String derivedCombinedTranscript,
-                                                        int derivedTotalDurationSeconds) {
-        boolean transcriptProvided = combinedTranscript != null || totalDurationSeconds != null;
-        if (!audioRequired && !transcriptProvided) {
-            return;
-        }
-
-        if (combinedTranscript == null || combinedTranscript.isBlank()) {
-            throw new BadRequestException("Spoken explanation is required for this question type");
-        }
-        if (totalDurationSeconds == null || totalDurationSeconds <= 0) {
-            throw new BadRequestException("total_duration_seconds must be a positive number");
-        }
-        if (totalDurationSeconds > MAX_TOTAL_DURATION_SECONDS) {
-            throw new BadRequestException("Total speaking time cannot exceed 600 seconds");
-        }
-
-        String normalizedSubmittedTranscript = combinedTranscript.trim();
-        if (!normalizedSubmittedTranscript.equals(derivedCombinedTranscript)) {
-            throw new BadRequestException("combined_transcript does not match saved transcript segments");
-        }
-        if (totalDurationSeconds != derivedTotalDurationSeconds) {
-            throw new BadRequestException("total_duration_seconds does not match saved transcript segments");
         }
     }
 

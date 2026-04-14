@@ -51,7 +51,8 @@ public class PracticeMainService {
     }
 
     @Transactional(readOnly = true)
-    public List<Long> getQuestionIdsWithPractices(Long practiceMainId) {
+    public List<Long> getQuestionIdsWithFeedback(Long practiceMainId) {
+        // Temporary proxy for feedback progress until active PracticeFeedback exists.
         return practiceRepository.findDistinctQuestionIdsByPracticeMainId(practiceMainId);
     }
 
@@ -59,11 +60,11 @@ public class PracticeMainService {
     public PracticeMainResponseDto getActivePracticeMainWithProgress(Long userId, Long questionMainId, String status) {
         PracticeMain practiceMain = getActivePracticeMain(userId, questionMainId, status);
         ensureDefaultWhiteboardContent(practiceMain);
-        List<Long> questionIdsWithPractices = getQuestionIdsWithPractices(practiceMain.getPracticeMainId());
-        return toResponseDto(practiceMain, questionIdsWithPractices);
+        List<Long> questionIdsWithFeedback = getQuestionIdsWithFeedback(practiceMain.getPracticeMainId());
+        return toResponseDto(practiceMain, questionIdsWithFeedback);
     }
 
-    private static PracticeMainResponseDto toResponseDto(PracticeMain practiceMain, List<Long> questionIdsWithPractices) {
+    private static PracticeMainResponseDto toResponseDto(PracticeMain practiceMain, List<Long> questionIdsWithFeedback) {
         return new PracticeMainResponseDto(
                 practiceMain.getPracticeMainId(),
                 practiceMain.getUserId(),
@@ -71,7 +72,7 @@ public class PracticeMainService {
                 practiceMain.getStatus(),
                 practiceMain.getStartedAt(),
                 practiceMain.getCompletedAt(),
-                questionIdsWithPractices,
+                questionIdsWithFeedback,
                 practiceMain.getWhiteboardContent()
         );
     }

@@ -98,8 +98,8 @@ class PracticeMainControllerTest {
                 .andExpect(jsonPath("$.started_at").value("2026-02-13T09:00:00Z"))
                 .andExpect(jsonPath("$.completed_at").doesNotExist())
                 .andExpect(jsonPath("$.whiteboard_content").isMap())
-                .andExpect(jsonPath("$.question_ids_with_practices[0]").value(10))
-                .andExpect(jsonPath("$.question_ids_with_practices[1]").value(20));
+                .andExpect(jsonPath("$.question_ids_with_feedback[0]").value(10))
+                .andExpect(jsonPath("$.question_ids_with_feedback[1]").value(20));
 
         verify(practiceMainService, times(1))
                 .getActivePracticeMainWithProgress(456L, 1L, "practicing");

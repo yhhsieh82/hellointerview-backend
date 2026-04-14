@@ -27,7 +27,7 @@ public class PracticeMainController {
 
     /**
      * GET /api/v1/practice-main
-     * Retrieves the active PracticeMain for a given user and QuestionMain, including question_ids_with_practices
+     * Retrieves the active PracticeMain for a given user and QuestionMain, including question_ids_with_feedback
      * and the canonical whiteboard_content.
      */
     @GetMapping
