@@ -46,7 +46,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponse> handleBadRequestException(BadRequestException ex) {
         logger.warn("Validation failed: {}", ex.getMessage());
-        ErrorResponse errorResponse = new ErrorResponse("Validation failed", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse("Validation failed", ex.getMessage(), ex.getDetails());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 

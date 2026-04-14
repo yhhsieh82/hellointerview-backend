@@ -1,6 +1,7 @@
 package com.hellointerview.backend.controller;
 
 import com.hellointerview.backend.dto.PracticeMainResponseDto;
+import com.hellointerview.backend.dto.PracticeQuestionStateDto;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.service.PracticeMainService;
 import org.junit.jupiter.api.BeforeEach;
@@ -167,6 +168,55 @@ class PracticeMainControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(practiceMainService, never()).getActivePracticeMainWithProgress(any(), any(), any());
+    }
+
+    @Test
+    void getPracticeQuestionState_WhenExists_Returns200() throws Exception {
+        PracticeQuestionStateDto dto = new PracticeQuestionStateDto(
+                789L,
+                123L,
+                456L,
+                List.of(),
+                0,
+                ""
+        );
+        when(practiceMainService.getPracticeQuestionState(123L, 456L)).thenReturn(dto);
+
+        mockMvc.perform(get("/api/v1/practice-main/{practiceMainId}/practices", 123L)
+                        .param("question_id", "456")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.practice_id").value(789))
+                .andExpect(jsonPath("$.practice_main_id").value(123))
+                .andExpect(jsonPath("$.question_id").value(456))
+                .andExpect(jsonPath("$.total_duration_seconds").value(0))
+                .andExpect(jsonPath("$.combined_transcript").value(""));
+    }
+
+    @Test
+    void createOrGetPractice_WhenCreated_Returns201() throws Exception {
+        PracticeQuestionStateDto dto = new PracticeQuestionStateDto(
+                789L,
+                123L,
+                456L,
+                List.of(),
+                0,
+                ""
+        );
+        when(practiceMainService.createOrGetPractice(123L, 456L))
+                .thenReturn(new PracticeMainService.CreateOrGetPracticeResult(true, dto));
+
+        mockMvc.perform(post("/api/v1/practice-main/{practiceMainId}/practices", 123L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "question_id": 456
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.practice_id").value(789))
+                .andExpect(jsonPath("$.practice_main_id").value(123))
+                .andExpect(jsonPath("$.question_id").value(456));
     }
 }
 

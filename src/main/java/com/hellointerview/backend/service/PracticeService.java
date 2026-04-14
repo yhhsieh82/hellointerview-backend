@@ -3,13 +3,13 @@ package com.hellointerview.backend.service;
 import com.hellointerview.backend.dto.PracticeTranscriptStateResponse;
 import com.hellointerview.backend.dto.PracticeSubmitRequest;
 import com.hellointerview.backend.dto.PracticeSubmitResponse;
-import com.hellointerview.backend.dto.TranscriptSegmentDto;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveRequest;
 import com.hellointerview.backend.dto.TranscriptSegmentSaveResponse;
 import com.hellointerview.backend.entity.Practice;
 import com.hellointerview.backend.entity.PracticeTranscriptSegment;
 import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
+import com.hellointerview.backend.exception.ValidationErrorDetail;
 import com.hellointerview.backend.repository.PracticeRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
 import org.springframework.stereotype.Service;
@@ -61,7 +61,7 @@ public class PracticeService {
                 nextSegmentOrder,
                 request.getDurationSeconds(),
                 nextTotalDuration,
-                buildCombinedTranscript(orderedSegments)
+                TranscriptAggregation.buildCombinedTranscript(orderedSegments)
         );
     }
 
@@ -72,10 +72,8 @@ public class PracticeService {
 
         List<PracticeTranscriptSegment> orderedSegments =
                 practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(practice.getPracticeId());
-        int derivedTotalDurationSeconds = orderedSegments.stream()
-                .mapToInt(PracticeTranscriptSegment::getDurationSeconds)
-                .sum();
-        String derivedCombinedTranscript = buildCombinedTranscript(orderedSegments);
+        int derivedTotalDurationSeconds = TranscriptAggregation.totalDurationSeconds(orderedSegments);
+        String derivedCombinedTranscript = TranscriptAggregation.buildCombinedTranscript(orderedSegments);
 
         boolean audioRequired = Boolean.TRUE.equals(practice.getQuestion().getRequiresRecording());
 
@@ -94,25 +92,14 @@ public class PracticeService {
         Practice practice = findPracticeById(practiceId);
         List<PracticeTranscriptSegment> orderedSegments =
                 practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(practiceId);
-
-        List<TranscriptSegmentDto> transcriptSegments = orderedSegments.stream()
-                .map(segment -> new TranscriptSegmentDto(
-                        segment.getSegmentOrder(),
-                        segment.getTranscriptText(),
-                        segment.getDurationSeconds()
-                ))
-                .toList();
-
-        int totalDurationSeconds = orderedSegments.stream()
-                .mapToInt(PracticeTranscriptSegment::getDurationSeconds)
-                .sum();
+        int totalDurationSeconds = TranscriptAggregation.totalDurationSeconds(orderedSegments);
 
         return new PracticeTranscriptStateResponse(
                 practice.getPracticeId(),
                 practice.getQuestion().getQuestionId(),
-                transcriptSegments,
+                TranscriptAggregation.toSegmentDtos(orderedSegments),
                 totalDurationSeconds,
-                buildCombinedTranscript(orderedSegments)
+                TranscriptAggregation.buildCombinedTranscript(orderedSegments)
         );
     }
 
@@ -126,10 +113,16 @@ public class PracticeService {
             throw new BadRequestException("Request body is required");
         }
         if (request.getTranscriptText() == null || request.getTranscriptText().isBlank()) {
-            throw new BadRequestException("Transcript text cannot be empty");
+            throw new BadRequestException(
+                    "Transcript text cannot be empty",
+                    List.of(new ValidationErrorDetail("transcript_text", "Transcript text cannot be empty"))
+            );
         }
         if (request.getDurationSeconds() == null || request.getDurationSeconds() <= 0) {
-            throw new BadRequestException("Duration seconds must be a positive number");
+            throw new BadRequestException(
+                    "Duration seconds must be a positive number",
+                    List.of(new ValidationErrorDetail("duration_seconds", "Duration seconds must be a positive number"))
+            );
         }
     }
 
@@ -159,12 +152,4 @@ public class PracticeService {
         }
     }
 
-    private static String buildCombinedTranscript(List<PracticeTranscriptSegment> orderedSegments) {
-        return orderedSegments.stream()
-                .map(PracticeTranscriptSegment::getTranscriptText)
-                .filter(text -> text != null && !text.isBlank())
-                .map(String::trim)
-                .reduce((left, right) -> left + " " + right)
-                .orElse("");
-    }
 }

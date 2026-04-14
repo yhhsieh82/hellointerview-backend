@@ -1,19 +1,24 @@
 package com.hellointerview.backend.service;
 
 import com.hellointerview.backend.dto.PracticeMainResponseDto;
+import com.hellointerview.backend.dto.PracticeQuestionStateDto;
+import com.hellointerview.backend.entity.Question;
 import com.hellointerview.backend.entity.Practice;
 import com.hellointerview.backend.entity.PracticeHistory;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
 import com.hellointerview.backend.entity.PracticeTranscriptSegment;
 import com.hellointerview.backend.entity.PracticeTranscriptSegmentHistory;
+import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
 import com.hellointerview.backend.repository.PracticeRepository;
+import com.hellointerview.backend.repository.QuestionRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentHistoryRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,19 +40,22 @@ public class PracticeMainService {
     private final PracticeMainHistoryRepository practiceMainHistoryRepository;
     private final PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
     private final PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
+    private final QuestionRepository questionRepository;
 
     public PracticeMainService(PracticeMainRepository practiceMainRepository,
                                PracticeRepository practiceRepository,
                                PracticeHistoryRepository practiceHistoryRepository,
                                PracticeMainHistoryRepository practiceMainHistoryRepository,
                                PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository,
-                               PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository) {
+                               PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository,
+                               QuestionRepository questionRepository) {
         this.practiceMainRepository = practiceMainRepository;
         this.practiceRepository = practiceRepository;
         this.practiceHistoryRepository = practiceHistoryRepository;
         this.practiceMainHistoryRepository = practiceMainHistoryRepository;
         this.practiceTranscriptSegmentRepository = practiceTranscriptSegmentRepository;
         this.practiceTranscriptSegmentHistoryRepository = practiceTranscriptSegmentHistoryRepository;
+        this.questionRepository = questionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -94,6 +102,43 @@ public class PracticeMainService {
         practiceMain.setWhiteboardContent(createDefaultWhiteboardContent());
 
         return practiceMainRepository.save(practiceMain);
+    }
+
+    @Transactional(readOnly = true)
+    public PracticeQuestionStateDto getPracticeQuestionState(Long practiceMainId, Long questionId) {
+        validateQuestionId(questionId);
+        Practice practice = practiceRepository
+                .findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(practiceMainId, questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("No practice found for the given practice_main_id and question_id"));
+        return toPracticeQuestionStateDto(practice);
+    }
+
+    public CreateOrGetPracticeResult createOrGetPractice(Long practiceMainId, Long questionId) {
+        validateQuestionId(questionId);
+        PracticeMain practiceMain = findPracticeMainById(practiceMainId);
+        Question question = findQuestionById(questionId);
+
+        Practice existing = practiceRepository
+                .findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(practiceMainId, questionId)
+                .orElse(null);
+        if (existing != null) {
+            return new CreateOrGetPracticeResult(false, toPracticeQuestionStateDto(existing));
+        }
+
+        Practice createdPractice = Practice.builder()
+                .practiceMain(practiceMain)
+                .question(question)
+                .build();
+
+        try {
+            Practice saved = practiceRepository.save(createdPractice);
+            return new CreateOrGetPracticeResult(true, toPracticeQuestionStateDto(saved));
+        } catch (DataIntegrityViolationException ex) {
+            Practice loaded = practiceRepository
+                    .findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(practiceMainId, questionId)
+                    .orElseThrow(() -> ex);
+            return new CreateOrGetPracticeResult(false, toPracticeQuestionStateDto(loaded));
+        }
     }
 
     public PracticeMain updatePracticeMain(Long practiceMainId, String status, Map<String, Object> whiteboardContent) {
@@ -212,6 +257,30 @@ public class PracticeMainService {
         }
     }
 
+    private PracticeMain findPracticeMainById(Long practiceMainId) {
+        return practiceMainRepository.findById(practiceMainId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "PracticeMain with id " + practiceMainId + " does not exist"
+                ));
+    }
+
+    private Question findQuestionById(Long questionId) {
+        return questionRepository.findById(questionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Question with id " + questionId + " does not exist"));
+    }
+
+    private static void validateQuestionId(Long questionId) {
+        if (questionId == null) {
+            throw new BadRequestException("question_id is required");
+        }
+    }
+
+    private PracticeQuestionStateDto toPracticeQuestionStateDto(Practice practice) {
+        List<PracticeTranscriptSegment> orderedSegments =
+                practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(practice.getPracticeId());
+        return TranscriptAggregation.toPracticeQuestionStateDto(practice, orderedSegments);
+    }
+
     private static Map<String, Object> createDefaultWhiteboardContent() {
         Map<String, Object> root = new LinkedHashMap<>();
 
@@ -258,6 +327,9 @@ public class PracticeMainService {
                 .toList();
 
         practiceTranscriptSegmentHistoryRepository.saveAll(transcriptSegmentHistories);
+    }
+
+    public record CreateOrGetPracticeResult(boolean created, PracticeQuestionStateDto practiceQuestionState) {
     }
 }
 

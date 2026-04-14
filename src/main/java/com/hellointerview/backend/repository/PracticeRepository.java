@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PracticeRepository extends JpaRepository<Practice, Long> {
 
@@ -12,4 +13,6 @@ public interface PracticeRepository extends JpaRepository<Practice, Long> {
     List<Long> findDistinctQuestionIdsByPracticeMainId(Long practiceMainId);
 
     List<Practice> findByPracticeMain_PracticeMainId(Long practiceMainId);
+
+    Optional<Practice> findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(Long practiceMainId, Long questionId);
 }

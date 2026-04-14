@@ -1,9 +1,13 @@
 package com.hellointerview.backend.service;
 
+import com.hellointerview.backend.dto.PracticeQuestionStateDto;
 import com.hellointerview.backend.entity.Practice;
 import com.hellointerview.backend.entity.PracticeHistory;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
+import com.hellointerview.backend.entity.PracticeTranscriptSegment;
+import com.hellointerview.backend.entity.Question;
+import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
@@ -11,6 +15,7 @@ import com.hellointerview.backend.repository.PracticeMainRepository;
 import com.hellointerview.backend.repository.PracticeRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentHistoryRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
+import com.hellointerview.backend.repository.QuestionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +43,7 @@ class PracticeMainServiceTest {
     private PracticeMainHistoryRepository practiceMainHistoryRepository;
     private PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
     private PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
+    private QuestionRepository questionRepository;
 
     private PracticeMainService practiceMainService;
 
@@ -49,6 +55,7 @@ class PracticeMainServiceTest {
         practiceMainHistoryRepository = mock(PracticeMainHistoryRepository.class);
         practiceTranscriptSegmentRepository = mock(PracticeTranscriptSegmentRepository.class);
         practiceTranscriptSegmentHistoryRepository = mock(PracticeTranscriptSegmentHistoryRepository.class);
+        questionRepository = mock(QuestionRepository.class);
 
         practiceMainService = new PracticeMainService(
                 practiceMainRepository,
@@ -56,8 +63,71 @@ class PracticeMainServiceTest {
                 practiceHistoryRepository,
                 practiceMainHistoryRepository,
                 practiceTranscriptSegmentRepository,
-                practiceTranscriptSegmentHistoryRepository
+                practiceTranscriptSegmentHistoryRepository,
+                questionRepository
         );
+    }
+
+    @Test
+    void getPracticeQuestionState_WhenFound_ReturnsAggregatedDto() {
+        PracticeMain practiceMain = new PracticeMain();
+        practiceMain.setPracticeMainId(123L);
+        Question question = new Question();
+        question.setQuestionId(456L);
+
+        Practice practice = new Practice();
+        practice.setPracticeId(789L);
+        practice.setPracticeMain(practiceMain);
+        practice.setQuestion(question);
+
+        PracticeTranscriptSegment segment = PracticeTranscriptSegment.builder()
+                .segmentOrder(1)
+                .transcriptText("hello world")
+                .durationSeconds(12)
+                .build();
+
+        when(practiceRepository.findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(123L, 456L))
+                .thenReturn(Optional.of(practice));
+        when(practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(789L))
+                .thenReturn(List.of(segment));
+
+        PracticeQuestionStateDto dto = practiceMainService.getPracticeQuestionState(123L, 456L);
+
+        assertEquals(789L, dto.getPracticeId());
+        assertEquals(123L, dto.getPracticeMainId());
+        assertEquals(456L, dto.getQuestionId());
+        assertEquals(12, dto.getTotalDurationSeconds());
+        assertEquals("hello world", dto.getCombinedTranscript());
+        assertEquals(1, dto.getTranscriptSegments().size());
+    }
+
+    @Test
+    void createOrGetPractice_WhenExisting_ReturnsExistingResult() {
+        PracticeMain practiceMain = new PracticeMain();
+        practiceMain.setPracticeMainId(123L);
+        Question question = new Question();
+        question.setQuestionId(456L);
+        Practice existingPractice = new Practice();
+        existingPractice.setPracticeId(99L);
+        existingPractice.setPracticeMain(practiceMain);
+        existingPractice.setQuestion(question);
+
+        when(practiceRepository.findByPracticeMain_PracticeMainIdAndQuestion_QuestionId(123L, 456L))
+                .thenReturn(Optional.of(existingPractice));
+        when(practiceTranscriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(99L))
+                .thenReturn(List.of());
+        when(practiceMainRepository.findById(123L)).thenReturn(Optional.of(practiceMain));
+        when(questionRepository.findById(456L)).thenReturn(Optional.of(question));
+
+        PracticeMainService.CreateOrGetPracticeResult result = practiceMainService.createOrGetPractice(123L, 456L);
+
+        assertEquals(false, result.created());
+        assertEquals(99L, result.practiceQuestionState().getPracticeId());
+    }
+
+    @Test
+    void createOrGetPractice_WhenQuestionIdMissing_ThrowsBadRequest() {
+        assertThrows(BadRequestException.class, () -> practiceMainService.createOrGetPractice(123L, null));
     }
 
     @Test

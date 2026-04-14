@@ -1,6 +1,8 @@
 package com.hellointerview.backend.controller;
 
 import com.hellointerview.backend.dto.PracticeMainResponseDto;
+import com.hellointerview.backend.dto.PracticeQuestionCreateRequest;
+import com.hellointerview.backend.dto.PracticeQuestionStateDto;
 import com.hellointerview.backend.dto.PracticeMainUpdateRequest;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.service.PracticeMainService;
@@ -68,6 +70,26 @@ public class PracticeMainController {
                 request.getWhiteboardContent()
         );
         return ResponseEntity.ok(updated);
+    }
+
+    @GetMapping("/{practiceMainId}/practices")
+    public ResponseEntity<PracticeQuestionStateDto> getPracticeQuestionState(
+            @PathVariable("practiceMainId") Long practiceMainId,
+            @RequestParam("question_id") Long questionId
+    ) {
+        PracticeQuestionStateDto dto = practiceMainService.getPracticeQuestionState(practiceMainId, questionId);
+        return ResponseEntity.ok(dto);
+    }
+
+    @PostMapping("/{practiceMainId}/practices")
+    public ResponseEntity<PracticeQuestionStateDto> createOrGetPractice(
+            @PathVariable("practiceMainId") Long practiceMainId,
+            @RequestBody PracticeQuestionCreateRequest request
+    ) {
+        PracticeMainService.CreateOrGetPracticeResult result =
+                practiceMainService.createOrGetPractice(practiceMainId, request.getQuestionId());
+        HttpStatus status = result.created() ? HttpStatus.CREATED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(result.practiceQuestionState());
     }
 }
 
