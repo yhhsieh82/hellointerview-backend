@@ -7,10 +7,14 @@ import com.hellointerview.backend.entity.Practice;
 import com.hellointerview.backend.entity.PracticeHistory;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
+import com.hellointerview.backend.entity.PracticeFeedback;
+import com.hellointerview.backend.entity.PracticeFeedbackHistory;
 import com.hellointerview.backend.entity.PracticeTranscriptSegment;
 import com.hellointerview.backend.entity.PracticeTranscriptSegmentHistory;
 import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
+import com.hellointerview.backend.repository.PracticeFeedbackHistoryRepository;
+import com.hellointerview.backend.repository.PracticeFeedbackRepository;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
@@ -27,6 +31,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -41,6 +46,8 @@ public class PracticeMainService {
     private final PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
     private final PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
     private final QuestionRepository questionRepository;
+    private final PracticeFeedbackRepository practiceFeedbackRepository;
+    private final PracticeFeedbackHistoryRepository practiceFeedbackHistoryRepository;
 
     public PracticeMainService(PracticeMainRepository practiceMainRepository,
                                PracticeRepository practiceRepository,
@@ -48,7 +55,9 @@ public class PracticeMainService {
                                PracticeMainHistoryRepository practiceMainHistoryRepository,
                                PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository,
                                PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository,
-                               QuestionRepository questionRepository) {
+                               QuestionRepository questionRepository,
+                               PracticeFeedbackRepository practiceFeedbackRepository,
+                               PracticeFeedbackHistoryRepository practiceFeedbackHistoryRepository) {
         this.practiceMainRepository = practiceMainRepository;
         this.practiceRepository = practiceRepository;
         this.practiceHistoryRepository = practiceHistoryRepository;
@@ -56,12 +65,13 @@ public class PracticeMainService {
         this.practiceTranscriptSegmentRepository = practiceTranscriptSegmentRepository;
         this.practiceTranscriptSegmentHistoryRepository = practiceTranscriptSegmentHistoryRepository;
         this.questionRepository = questionRepository;
+        this.practiceFeedbackRepository = practiceFeedbackRepository;
+        this.practiceFeedbackHistoryRepository = practiceFeedbackHistoryRepository;
     }
 
     @Transactional(readOnly = true)
     public List<Long> getQuestionIdsWithFeedback(Long practiceMainId) {
-        // Temporary proxy for feedback progress until active PracticeFeedback exists.
-        return practiceRepository.findDistinctQuestionIdsByPracticeMainId(practiceMainId);
+        return practiceFeedbackRepository.findDistinctQuestionIdsWithFeedbackByPracticeMainId(practiceMainId);
     }
 
     @Transactional(readOnly = true)
@@ -216,6 +226,7 @@ public class PracticeMainService {
                 .toList();
 
         practiceHistoryRepository.saveAll(practiceHistories);
+        archivePracticeFeedbackToHistory(practices, practiceHistories);
         archiveTranscriptSegments(practices, practiceHistories);
 
         practiceMainRepository.delete(practiceMain);
@@ -295,6 +306,33 @@ public class PracticeMainService {
         }
 
         return root;
+    }
+
+    private void archivePracticeFeedbackToHistory(List<Practice> practices, List<PracticeHistory> practiceHistories) {
+        if (practices.isEmpty()) {
+            return;
+        }
+        Map<Long, PracticeHistory> historyByPracticeId = practiceHistories.stream()
+                .collect(Collectors.toMap(PracticeHistory::getPracticeId, h -> h, (a, b) -> a));
+        List<Long> practiceIds = practices.stream().map(Practice::getPracticeId).toList();
+        List<PracticeFeedback> feedbacks = practiceFeedbackRepository.findByPractice_PracticeIdIn(practiceIds);
+        if (feedbacks.isEmpty()) {
+            return;
+        }
+        List<PracticeFeedbackHistory> rows = new ArrayList<>();
+        for (PracticeFeedback fb : feedbacks) {
+            PracticeHistory ph = historyByPracticeId.get(fb.getPractice().getPracticeId());
+            if (ph == null) {
+                throw new IllegalStateException("Missing PracticeHistory for practice_id " + fb.getPractice().getPracticeId());
+            }
+            rows.add(PracticeFeedbackHistory.builder()
+                    .practice(ph)
+                    .feedbackText(fb.getFeedbackText())
+                    .score(fb.getScore())
+                    .generatedAt(fb.getGeneratedAt())
+                    .build());
+        }
+        practiceFeedbackHistoryRepository.saveAll(rows);
     }
 
     private void archiveTranscriptSegments(List<Practice> practices, List<PracticeHistory> practiceHistories) {

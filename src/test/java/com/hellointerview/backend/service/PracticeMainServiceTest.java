@@ -2,6 +2,8 @@ package com.hellointerview.backend.service;
 
 import com.hellointerview.backend.dto.PracticeQuestionStateDto;
 import com.hellointerview.backend.entity.Practice;
+import com.hellointerview.backend.entity.PracticeFeedback;
+import com.hellointerview.backend.entity.PracticeFeedbackHistory;
 import com.hellointerview.backend.entity.PracticeHistory;
 import com.hellointerview.backend.entity.PracticeMain;
 import com.hellointerview.backend.entity.PracticeMainHistory;
@@ -9,6 +11,8 @@ import com.hellointerview.backend.entity.PracticeTranscriptSegment;
 import com.hellointerview.backend.entity.Question;
 import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
+import com.hellointerview.backend.repository.PracticeFeedbackHistoryRepository;
+import com.hellointerview.backend.repository.PracticeFeedbackRepository;
 import com.hellointerview.backend.repository.PracticeHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainHistoryRepository;
 import com.hellointerview.backend.repository.PracticeMainRepository;
@@ -20,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,8 +35,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +52,8 @@ class PracticeMainServiceTest {
     private PracticeTranscriptSegmentRepository practiceTranscriptSegmentRepository;
     private PracticeTranscriptSegmentHistoryRepository practiceTranscriptSegmentHistoryRepository;
     private QuestionRepository questionRepository;
+    private PracticeFeedbackRepository practiceFeedbackRepository;
+    private PracticeFeedbackHistoryRepository practiceFeedbackHistoryRepository;
 
     private PracticeMainService practiceMainService;
 
@@ -56,6 +66,10 @@ class PracticeMainServiceTest {
         practiceTranscriptSegmentRepository = mock(PracticeTranscriptSegmentRepository.class);
         practiceTranscriptSegmentHistoryRepository = mock(PracticeTranscriptSegmentHistoryRepository.class);
         questionRepository = mock(QuestionRepository.class);
+        practiceFeedbackRepository = mock(PracticeFeedbackRepository.class);
+        practiceFeedbackHistoryRepository = mock(PracticeFeedbackHistoryRepository.class);
+
+        when(practiceFeedbackRepository.findByPractice_PracticeIdIn(anyList())).thenReturn(Collections.emptyList());
 
         practiceMainService = new PracticeMainService(
                 practiceMainRepository,
@@ -64,7 +78,9 @@ class PracticeMainServiceTest {
                 practiceMainHistoryRepository,
                 practiceTranscriptSegmentRepository,
                 practiceTranscriptSegmentHistoryRepository,
-                questionRepository
+                questionRepository,
+                practiceFeedbackRepository,
+                practiceFeedbackHistoryRepository
         );
     }
 
@@ -145,9 +161,13 @@ class PracticeMainServiceTest {
         whiteboard.put("section_1", Collections.emptyMap());
         active.setWhiteboardContent(whiteboard);
 
+        Question question = new Question();
+        question.setQuestionId(99L);
+
         Practice practice = new Practice();
         practice.setPracticeId(10L);
         practice.setPracticeMain(active);
+        practice.setQuestion(question);
         practice.setSubmittedAt(startedAt.plusSeconds(600));
 
         when(practiceMainRepository.findById(practiceMainId)).thenReturn(Optional.of(active));
@@ -166,7 +186,61 @@ class PracticeMainServiceTest {
 
         verify(practiceMainHistoryRepository).save(any(PracticeMainHistory.class));
         verify(practiceHistoryRepository).saveAll(any(List.class));
+        verify(practiceFeedbackHistoryRepository, never()).saveAll(anyList());
         verify(practiceMainRepository).delete(eq(active));
+    }
+
+    @Test
+    void completePracticeSession_WhenPracticeHasFeedback_ArchivesFeedbackToHistory() {
+        Long practiceMainId = 123L;
+        Instant startedAt = Instant.parse("2026-02-13T09:00:00Z");
+        Instant feedbackAt = Instant.parse("2026-02-13T10:00:00Z");
+
+        PracticeMain active = new PracticeMain();
+        active.setPracticeMainId(practiceMainId);
+        active.setUserId(456L);
+        active.setQuestionMainId(1L);
+        active.setStatus("practicing");
+        active.setStartedAt(startedAt);
+        Map<String, Object> whiteboard = new LinkedHashMap<>();
+        whiteboard.put("section_1", Collections.emptyMap());
+        active.setWhiteboardContent(whiteboard);
+
+        Question question = new Question();
+        question.setQuestionId(99L);
+
+        Practice practice = new Practice();
+        practice.setPracticeId(10L);
+        practice.setPracticeMain(active);
+        practice.setQuestion(question);
+        practice.setSubmittedAt(startedAt.plusSeconds(600));
+
+        PracticeFeedback feedback = PracticeFeedback.builder()
+                .practice(practice)
+                .feedbackText("Great work")
+                .score(88.0)
+                .generatedAt(feedbackAt)
+                .build();
+
+        when(practiceMainRepository.findById(practiceMainId)).thenReturn(Optional.of(active));
+        when(practiceRepository.findByPracticeMain_PracticeMainId(practiceMainId))
+                .thenReturn(Collections.singletonList(practice));
+        when(practiceTranscriptSegmentRepository.findByPractice_PracticeIdIn(List.of(10L)))
+                .thenReturn(Collections.emptyList());
+        when(practiceFeedbackRepository.findByPractice_PracticeIdIn(List.of(10L)))
+                .thenReturn(List.of(feedback));
+
+        practiceMainService.completePracticeSession(practiceMainId);
+
+        verify(practiceFeedbackHistoryRepository).saveAll(argThat((Iterable<PracticeFeedbackHistory> it) -> {
+            List<PracticeFeedbackHistory> rows = new ArrayList<>();
+            it.forEach(rows::add);
+            return rows.size() == 1
+                    && "Great work".equals(rows.get(0).getFeedbackText())
+                    && Double.valueOf(88.0).equals(rows.get(0).getScore())
+                    && feedbackAt.equals(rows.get(0).getGeneratedAt())
+                    && Long.valueOf(10L).equals(rows.get(0).getPractice().getPracticeId());
+        }));
     }
 
     @Test

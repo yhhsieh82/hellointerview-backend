@@ -20,9 +20,20 @@ public class ErrorResponse {
     @JsonProperty("details")
     private List<ValidationErrorDetail> details;
 
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonProperty("code")
+    private String code;
+
     public ErrorResponse(String error, String message) {
         this.error = error;
         this.message = message;
+        this.details = List.of();
+    }
+
+    public ErrorResponse(String error, String message, String code) {
+        this.error = error;
+        this.message = message;
+        this.code = code;
         this.details = List.of();
     }
 
@@ -54,5 +65,13 @@ public class ErrorResponse {
 
     public void setDetails(List<ValidationErrorDetail> details) {
         this.details = details;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
     }
 }
