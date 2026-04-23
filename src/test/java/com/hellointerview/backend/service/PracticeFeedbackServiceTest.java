@@ -20,6 +20,7 @@ import com.hellointerview.backend.service.feedback.FeedbackClaimResult;
 import com.hellointerview.backend.service.feedback.FeedbackIdempotencyCoordinator;
 import com.hellointerview.backend.service.feedback.LlmFeedbackClient;
 import com.hellointerview.backend.service.feedback.LlmFeedbackInput;
+ import com.hellointerview.backend.service.feedback.LlmProviderException;
 import com.hellointerview.backend.service.feedback.LlmFeedbackResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -174,6 +175,34 @@ class PracticeFeedbackServiceTest {
         assertThrows(GradeMappingException.class, () -> service.submitFeedback(789L, "k-grade"));
 
         verify(idempotencyCoordinator).markRequestFailed(88L, "grade_mapping_failed");
+    }
+
+    @Test
+    void submitFeedback_WhenLlmTransientFailure_MarksFailedAndPropagates() {
+        when(practiceRepository.findWithMainAndQuestionById(789L)).thenReturn(Optional.of(practice));
+        when(transcriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(789L)).thenReturn(List.of());
+        when(idempotencyCoordinator.claimOrInsert(anyLong(), any(), any(), any()))
+                .thenReturn(new FeedbackClaimResult.Proceed(77L));
+        when(llmFeedbackClient.generate(any(LlmFeedbackInput.class)))
+                .thenThrow(new LlmProviderException("retry exhausted", true));
+
+        assertThrows(LlmProviderException.class, () -> service.submitFeedback(789L, "k-transient"));
+
+        verify(idempotencyCoordinator).markRequestFailed(77L, "llm_transient_failure");
+    }
+
+    @Test
+    void submitFeedback_WhenLlmTerminalFailure_MarksFailedAndPropagates() {
+        when(practiceRepository.findWithMainAndQuestionById(789L)).thenReturn(Optional.of(practice));
+        when(transcriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(789L)).thenReturn(List.of());
+        when(idempotencyCoordinator.claimOrInsert(anyLong(), any(), any(), any()))
+                .thenReturn(new FeedbackClaimResult.Proceed(66L));
+        when(llmFeedbackClient.generate(any(LlmFeedbackInput.class)))
+                .thenThrow(new LlmProviderException("bad request", false));
+
+        assertThrows(LlmProviderException.class, () -> service.submitFeedback(789L, "k-terminal"));
+
+        verify(idempotencyCoordinator).markRequestFailed(66L, "llm_terminal_failure");
     }
 
     @Test

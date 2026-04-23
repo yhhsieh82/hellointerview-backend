@@ -1,5 +1,6 @@
 package com.hellointerview.backend.exception;
 
+import com.hellointerview.backend.service.feedback.LlmProviderException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -80,6 +81,26 @@ public class GlobalExceptionHandler {
         logger.warn("LLM timeout: {}", ex.getMessage());
         ErrorResponse errorResponse = new ErrorResponse("Service unavailable", ex.getMessage(), "llm_timeout");
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+    }
+
+    @ExceptionHandler(LlmProviderException.class)
+    public ResponseEntity<ErrorResponse> handleLlmProviderException(LlmProviderException ex) {
+        if (ex.isTransientFailure()) {
+            logger.warn("LLM transient provider failure: {}", ex.getMessage());
+            ErrorResponse errorResponse = new ErrorResponse(
+                    "Service unavailable",
+                    "Feedback service temporarily unavailable. Please try again.",
+                    "llm_transient_failure"
+            );
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+        }
+        logger.error("LLM terminal provider failure: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "Internal server error",
+                "Feedback generation failed due to provider configuration or request issues.",
+                "llm_terminal_failure"
+        );
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 
     @ExceptionHandler(GradeMappingException.class)

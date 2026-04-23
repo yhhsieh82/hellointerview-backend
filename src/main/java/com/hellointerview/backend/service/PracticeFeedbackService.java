@@ -23,6 +23,7 @@ import com.hellointerview.backend.service.feedback.FeedbackSubmitResponseMapper;
 import com.hellointerview.backend.service.feedback.LlmFeedbackClient;
 import com.hellointerview.backend.service.feedback.LlmFeedbackInput;
 import com.hellointerview.backend.service.feedback.LlmFeedbackResult;
+import com.hellointerview.backend.service.feedback.LlmProviderException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -110,6 +111,12 @@ public class PracticeFeedbackService {
             return FeedbackSubmitResponseMapper.toDto(practice, saved);
         } catch (LlmTimeoutException e) {
             idempotencyCoordinator.markRequestFailed(proceed.requestId(), "llm_timeout");
+            throw e;
+        } catch (LlmProviderException e) {
+            idempotencyCoordinator.markRequestFailed(
+                    proceed.requestId(),
+                    e.isTransientFailure() ? "llm_transient_failure" : "llm_terminal_failure"
+            );
             throw e;
         } catch (GradeMappingException e) {
             idempotencyCoordinator.markRequestFailed(proceed.requestId(), "grade_mapping_failed");

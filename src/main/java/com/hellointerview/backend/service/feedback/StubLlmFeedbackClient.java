@@ -1,10 +1,12 @@
 package com.hellointerview.backend.service.feedback;
 
 import org.springframework.context.annotation.Primary;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
 @Primary
+@ConditionalOnProperty(prefix = "ai.llm", name = "provider", havingValue = "stub", matchIfMissing = true)
 public class StubLlmFeedbackClient implements LlmFeedbackClient {
 
     @Override

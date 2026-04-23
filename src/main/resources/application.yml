@@ -31,3 +31,16 @@ logging:
     com.hellointerview.backend: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+ai:
+  llm:
+    provider: ${LLM_PROVIDER:stub}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:llama3.1:8b}
+      connect-timeout: ${OLLAMA_CONNECT_TIMEOUT:2s}
+      read-timeout: ${OLLAMA_READ_TIMEOUT:60s}
+      max-attempts: ${OLLAMA_MAX_ATTEMPTS:2}
+      initial-backoff: ${OLLAMA_INITIAL_BACKOFF:500ms}
+      backoff-multiplier: ${OLLAMA_BACKOFF_MULTIPLIER:2.0}
+      max-jitter-millis: ${OLLAMA_MAX_JITTER_MILLIS:250}
