@@ -1,4 +1,7 @@
 spring:
+  profiles:
+    active: local
+
   application:
     name: hellointerview-backend
 
@@ -44,3 +47,17 @@ ai:
       initial-backoff: ${OLLAMA_INITIAL_BACKOFF:500ms}
       backoff-multiplier: ${OLLAMA_BACKOFF_MULTIPLIER:2.0}
       max-jitter-millis: ${OLLAMA_MAX_JITTER_MILLIS:250}
+    gemini:
+      base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.0-flash}
+      connect-timeout: ${GEMINI_CONNECT_TIMEOUT:2s}
+      read-timeout: ${GEMINI_READ_TIMEOUT:60s}
+      max-attempts: ${GEMINI_MAX_ATTEMPTS:2}
+      initial-backoff: ${GEMINI_INITIAL_BACKOFF:500ms}
+      backoff-multiplier: ${GEMINI_BACKOFF_MULTIPLIER:2.0}
+      # The design uses the ${VAR:default} syntax so that:
+      #   - If an environment variable GEMINI_MAX_JITTER_MILLIS is set, it overrides all config.
+      #   - If not, Spring uses the value from application.yml (profile-based config if present).
+      #   - If neither is set, the default value 250 is used.
+      max-jitter-millis: ${GEMINI_MAX_JITTER_MILLIS:250}

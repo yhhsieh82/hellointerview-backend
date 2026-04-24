@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 @SpringBootTest(
         classes = LlmProviderSelectionDefaultProfileTest.TestApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.NONE
+        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        properties = "ai.llm.provider=stub"
 )
 class LlmProviderSelectionDefaultProfileTest {
 
@@ -40,7 +41,8 @@ class LlmProviderSelectionDefaultProfileTest {
     @Import({
             LlmProviderConfiguration.class,
             StubLlmFeedbackClient.class,
-            OllamaLlmFeedbackClient.class
+            OllamaLlmFeedbackClient.class,
+            GeminiLlmFeedbackClient.class
     })
     static class TestApplication {
         @Bean

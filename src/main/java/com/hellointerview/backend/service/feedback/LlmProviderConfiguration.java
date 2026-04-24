@@ -4,6 +4,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(OllamaLlmProperties.class)
+@EnableConfigurationProperties({OllamaLlmProperties.class, GeminiLlmProperties.class})
 public class LlmProviderConfiguration {
 }
