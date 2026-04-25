@@ -21,7 +21,7 @@ public record GeminiLlmProperties(
         @NotNull Duration initialBackoff,
         double backoffMultiplier,
         @Min(0) @Max(5000) int maxJitterMillis
-) {
+) implements LlmRetryPolicyProperties {
     public GeminiLlmProperties {
         if (backoffMultiplier < 1.0) {
             throw new IllegalArgumentException("ai.llm.gemini.backoff-multiplier must be >= 1.0");

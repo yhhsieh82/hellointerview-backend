@@ -20,7 +20,7 @@ public record OllamaLlmProperties(
         @NotNull Duration initialBackoff,
         double backoffMultiplier,
         @Min(0) @Max(5000) int maxJitterMillis
-) {
+) implements LlmRetryPolicyProperties {
     public OllamaLlmProperties {
         if (backoffMultiplier < 1.0) {
             throw new IllegalArgumentException("ai.llm.ollama.backoff-multiplier must be >= 1.0");
