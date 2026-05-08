@@ -1,6 +1,8 @@
 package com.hellointerview.backend.service.feedback;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -45,6 +47,7 @@ class LlmProviderSelectionDevProfileTest {
     })
     @Import({
             LlmProviderConfiguration.class,
+            LabRequestContextResolver.class,
             StubLlmFeedbackClient.class,
             OllamaLlmFeedbackClient.class,
             GeminiLlmFeedbackClient.class
@@ -58,6 +61,11 @@ class LlmProviderSelectionDevProfileTest {
         @Bean
         ObjectMapper objectMapper() {
             return new ObjectMapper();
+        }
+
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
         }
     }
 }

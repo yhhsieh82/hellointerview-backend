@@ -29,6 +29,12 @@ spring:
 server:
   port: 8000
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
 logging:
   level:
     com.hellointerview.backend: DEBUG
@@ -61,3 +67,10 @@ ai:
       #   - If not, Spring uses the value from application.yml (profile-based config if present).
       #   - If neither is set, the default value 250 is used.
       max-jitter-millis: ${GEMINI_MAX_JITTER_MILLIS:250}
+    stub:
+      model: ${STUB_MODEL:stub-lab-v1}
+      max-attempts: ${STUB_MAX_ATTEMPTS:2}
+      initial-backoff: ${STUB_INITIAL_BACKOFF:500ms}
+      backoff-multiplier: ${STUB_BACKOFF_MULTIPLIER:2.0}
+      max-jitter-millis: ${STUB_MAX_JITTER_MILLIS:250}
+      latency-delay-millis: ${STUB_LATENCY_DELAY_MILLIS:3000}

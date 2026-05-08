@@ -1,6 +1,7 @@
 package com.hellointerview.backend.service.feedback;
 
 import com.hellointerview.backend.exception.LlmTimeoutException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.client.ResourceAccessException;
@@ -30,6 +31,11 @@ class AbstractLlmFeedbackClientTest {
         assertEquals(2, calls.get());
         assertEquals("Recovered", result.feedbackText());
         assertEquals(77.0, result.score());
+        assertEquals(1.0, client.registry.get("llm_provider_retry_outcome_total")
+                .tag("provider", "TestProvider")
+                .tag("outcome", "success_after_retry")
+                .counter()
+                .count());
     }
 
     @Test
@@ -39,6 +45,30 @@ class AbstractLlmFeedbackClientTest {
         });
 
         assertThrows(LlmTimeoutException.class, () -> client.generate(input()));
+        assertEquals(2.0, client.registry.get("llm_provider_failures_total")
+                .tag("provider", "TestProvider")
+                .tag("failure_class", "timeout")
+                .counter()
+                .count());
+        assertEquals(1.0, client.registry.get("llm_provider_retry_outcome_total")
+                .tag("provider", "TestProvider")
+                .tag("outcome", "exhausted")
+                .counter()
+                .count());
+    }
+
+    @Test
+    void generate_WhenTerminalFailure_RecordsTerminalRequestFailureClass() {
+        TestClient client = new TestClient(() -> {
+            throw new LlmProviderException("Bad request", false);
+        });
+
+        assertThrows(LlmProviderException.class, () -> client.generate(input()));
+        assertEquals(1.0, client.registry.get("llm_provider_failures_total")
+                .tag("provider", "TestProvider")
+                .tag("failure_class", "terminal_request")
+                .counter()
+                .count());
     }
 
     private static LlmFeedbackInput input() {
@@ -47,15 +77,31 @@ class AbstractLlmFeedbackClientTest {
 
     private static final class TestClient extends AbstractLlmFeedbackClient {
         private final Invocation invocation;
+        private final SimpleMeterRegistry registry;
 
         private TestClient(Invocation invocation) {
-            super(new FeedbackPromptTemplate(), new TestRetryProperties(), LoggerFactory.getLogger(TestClient.class));
+            this(invocation, new SimpleMeterRegistry());
+        }
+
+        private TestClient(Invocation invocation, SimpleMeterRegistry registry) {
+            super(
+                    new FeedbackPromptTemplate(),
+                    new TestRetryProperties(),
+                    LoggerFactory.getLogger(TestClient.class),
+                    LlmProviderMetrics.fromRegistry(registry)
+            );
             this.invocation = invocation;
+            this.registry = registry;
         }
 
         @Override
         protected String providerName() {
             return "TestProvider";
+        }
+
+        @Override
+        protected String modelName() {
+            return "test-model";
         }
 
         @Override

@@ -1,0 +1,52 @@
+{
+  "S1": {
+    "description": "baseline steady load",
+    "vus": 8,
+    "warmup_seconds": 30,
+    "steady_seconds": 180,
+    "fault_seconds": 0,
+    "cooldown_seconds": 30,
+    "burst_multiplier": 1,
+    "fault_mode": "none"
+  },
+  "S2": {
+    "description": "3x short burst load",
+    "vus": 8,
+    "warmup_seconds": 30,
+    "steady_seconds": 60,
+    "fault_seconds": 90,
+    "cooldown_seconds": 30,
+    "burst_multiplier": 3,
+    "fault_mode": "none"
+  },
+  "S3": {
+    "description": "transient provider 5xx burst",
+    "vus": 8,
+    "warmup_seconds": 30,
+    "steady_seconds": 60,
+    "fault_seconds": 90,
+    "cooldown_seconds": 30,
+    "burst_multiplier": 1,
+    "fault_mode": "5xx"
+  },
+  "S4": {
+    "description": "transient provider 429 burst",
+    "vus": 8,
+    "warmup_seconds": 30,
+    "steady_seconds": 60,
+    "fault_seconds": 90,
+    "cooldown_seconds": 30,
+    "burst_multiplier": 1,
+    "fault_mode": "429"
+  },
+  "S5": {
+    "description": "slow provider tail latency window",
+    "vus": 8,
+    "warmup_seconds": 30,
+    "steady_seconds": 60,
+    "fault_seconds": 120,
+    "cooldown_seconds": 30,
+    "burst_multiplier": 1,
+    "fault_mode": "latency"
+  }
+}

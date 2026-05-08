@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hellointerview.backend.exception.LlmTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -30,10 +32,19 @@ public class GeminiLlmFeedbackClient extends AbstractLlmFeedbackClient {
     private final LlmFeedbackResponseParser responseParser;
     private final GeminiLlmProperties properties;
 
+    @Autowired
     public GeminiLlmFeedbackClient(RestClient.Builder restClientBuilder,
                                    ObjectMapper objectMapper,
+                                   MeterRegistry meterRegistry,
                                    GeminiLlmProperties properties) {
-        super(new FeedbackPromptTemplate(), properties, logger);
+        this(restClientBuilder, objectMapper, properties, LlmProviderMetrics.fromRegistry(meterRegistry));
+    }
+
+    GeminiLlmFeedbackClient(RestClient.Builder restClientBuilder,
+                            ObjectMapper objectMapper,
+                            GeminiLlmProperties properties,
+                            LlmProviderMetrics metrics) {
+        super(new FeedbackPromptTemplate(), properties, logger, metrics);
         if (properties.apiKey() == null || properties.apiKey().isBlank()) {
             throw new IllegalArgumentException("ai.llm.gemini.api-key must not be blank when provider is gemini");
         }
@@ -52,6 +63,11 @@ public class GeminiLlmFeedbackClient extends AbstractLlmFeedbackClient {
     @Override
     protected String providerName() {
         return "Gemini";
+    }
+
+    @Override
+    protected String modelName() {
+        return properties.model();
     }
 
     @Override

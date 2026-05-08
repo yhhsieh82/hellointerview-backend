@@ -2,8 +2,10 @@ package com.hellointerview.backend.service.feedback;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hellointerview.backend.exception.LlmTimeoutException;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -24,10 +26,19 @@ public class OllamaLlmFeedbackClient extends AbstractLlmFeedbackClient {
     private final LlmFeedbackResponseParser responseParser;
     private final OllamaLlmProperties properties;
 
+    @Autowired
     public OllamaLlmFeedbackClient(RestClient.Builder restClientBuilder,
                                    ObjectMapper objectMapper,
+                                   MeterRegistry meterRegistry,
                                    OllamaLlmProperties properties) {
-        super(new FeedbackPromptTemplate(), properties, logger);
+        this(restClientBuilder, objectMapper, properties, LlmProviderMetrics.fromRegistry(meterRegistry));
+    }
+
+    OllamaLlmFeedbackClient(RestClient.Builder restClientBuilder,
+                            ObjectMapper objectMapper,
+                            OllamaLlmProperties properties,
+                            LlmProviderMetrics metrics) {
+        super(new FeedbackPromptTemplate(), properties, logger, metrics);
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout((int) properties.connectTimeout().toMillis());
         requestFactory.setReadTimeout((int) properties.readTimeout().toMillis());
@@ -42,6 +53,11 @@ public class OllamaLlmFeedbackClient extends AbstractLlmFeedbackClient {
     @Override
     protected String providerName() {
         return "Ollama";
+    }
+
+    @Override
+    protected String modelName() {
+        return properties.model();
     }
 
     @Override
