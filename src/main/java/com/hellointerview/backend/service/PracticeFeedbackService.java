@@ -19,13 +19,16 @@ import com.hellointerview.backend.service.feedback.DiagramToTextConverter;
 import com.hellointerview.backend.service.feedback.FeedbackClaimResult;
 import com.hellointerview.backend.service.feedback.FeedbackIdempotencyCoordinator;
 import com.hellointerview.backend.service.feedback.FeedbackInputFingerprint;
+import com.hellointerview.backend.service.feedback.FeedbackReliabilityMetrics;
 import com.hellointerview.backend.service.feedback.FeedbackSubmitResponseMapper;
 import com.hellointerview.backend.service.feedback.LlmFeedbackClient;
 import com.hellointerview.backend.service.feedback.LlmFeedbackInput;
 import com.hellointerview.backend.service.feedback.LlmFeedbackResult;
 import com.hellointerview.backend.service.feedback.LlmProviderException;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -39,17 +42,20 @@ public class PracticeFeedbackService {
     private final FeedbackIdempotencyCoordinator idempotencyCoordinator;
     private final LlmFeedbackClient llmFeedbackClient;
     private final ObjectMapper objectMapper;
+    private final FeedbackReliabilityMetrics reliabilityMetrics;
 
     public PracticeFeedbackService(PracticeRepository practiceRepository,
                                    PracticeTranscriptSegmentRepository transcriptSegmentRepository,
                                    FeedbackIdempotencyCoordinator idempotencyCoordinator,
                                    LlmFeedbackClient llmFeedbackClient,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper,
+                                   MeterRegistry meterRegistry) {
         this.practiceRepository = practiceRepository;
         this.transcriptSegmentRepository = transcriptSegmentRepository;
         this.idempotencyCoordinator = idempotencyCoordinator;
         this.llmFeedbackClient = llmFeedbackClient;
         this.objectMapper = objectMapper;
+        this.reliabilityMetrics = FeedbackReliabilityMetrics.fromRegistry(meterRegistry);
     }
 
     /**
@@ -57,7 +63,9 @@ public class PracticeFeedbackService {
      * {@link FeedbackIdempotencyCoordinator} so the claim commits before external I/O.
      */
     public FeedbackSubmitResponseDto submitFeedback(Long practiceId, String idempotencyKeyHeader) {
+        long requestStartNanos = System.nanoTime();
         String normalizedKey = normalizeIdempotencyKey(idempotencyKeyHeader);
+        reliabilityMetrics.recordRequestOutcome("accepted");
 
         Practice practice = practiceRepository.findWithMainAndQuestionById(practiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Practice with id " + practiceId + " does not exist"));
@@ -88,14 +96,22 @@ public class PracticeFeedbackService {
                 combinedTranscript
         );
 
+        long claimStartNanos = System.nanoTime();
         FeedbackClaimResult claim = idempotencyCoordinator.claimOrInsert(userId, normalizedKey, practice, fingerprint);
+        reliabilityMetrics.recordStageLatency("claim", durationSince(claimStartNanos));
         if (claim instanceof FeedbackClaimResult.Replay replay) {
+            reliabilityMetrics.recordRequestOutcome("success");
+            reliabilityMetrics.recordE2eLatency("success", durationSince(requestStartNanos));
             return replay.dto();
         }
         if (claim instanceof FeedbackClaimResult.Conflict conflict) {
+            reliabilityMetrics.recordRequestOutcome("rejected");
+            reliabilityMetrics.recordE2eLatency("rejected", durationSince(requestStartNanos));
             throw new ConflictException(conflict.message());
         }
         if (claim instanceof FeedbackClaimResult.InProgress) {
+            reliabilityMetrics.recordRequestOutcome("rejected");
+            reliabilityMetrics.recordE2eLatency("rejected", durationSince(requestStartNanos));
             throw new FeedbackInProgressException(
                     "Feedback generation is already in progress for this Idempotency-Key",
                     5
@@ -106,22 +122,44 @@ public class PracticeFeedbackService {
         }
 
         try {
+            long providerStartNanos = System.nanoTime();
             LlmFeedbackResult result = llmFeedbackClient.generate(llmInput);
+            reliabilityMetrics.recordStageLatency("provider", durationSince(providerStartNanos));
+            long finalizeStartNanos = System.nanoTime();
             PracticeFeedback saved = idempotencyCoordinator.finalizeSuccessful(proceed.requestId(), practice, result);
+            reliabilityMetrics.recordStageLatency("finalize", durationSince(finalizeStartNanos));
+            reliabilityMetrics.recordRequestOutcome("success");
+            reliabilityMetrics.recordE2eLatency("success", durationSince(requestStartNanos));
             return FeedbackSubmitResponseMapper.toDto(practice, saved);
         } catch (LlmTimeoutException e) {
+            long finalizeStartNanos = System.nanoTime();
             idempotencyCoordinator.markRequestFailed(proceed.requestId(), "llm_timeout");
+            reliabilityMetrics.recordStageLatency("finalize", durationSince(finalizeStartNanos));
+            reliabilityMetrics.recordRequestOutcome("degraded");
+            reliabilityMetrics.recordE2eLatency("degraded", durationSince(requestStartNanos));
             throw e;
         } catch (LlmProviderException e) {
+            long finalizeStartNanos = System.nanoTime();
             idempotencyCoordinator.markRequestFailed(
                     proceed.requestId(),
                     e.isTransientFailure() ? "llm_transient_failure" : "llm_terminal_failure"
             );
+            reliabilityMetrics.recordStageLatency("finalize", durationSince(finalizeStartNanos));
+            reliabilityMetrics.recordRequestOutcome(e.isTransientFailure() ? "degraded" : "rejected");
+            reliabilityMetrics.recordE2eLatency(e.isTransientFailure() ? "degraded" : "rejected", durationSince(requestStartNanos));
             throw e;
         } catch (GradeMappingException e) {
+            long finalizeStartNanos = System.nanoTime();
             idempotencyCoordinator.markRequestFailed(proceed.requestId(), "grade_mapping_failed");
+            reliabilityMetrics.recordStageLatency("finalize", durationSince(finalizeStartNanos));
+            reliabilityMetrics.recordRequestOutcome("rejected");
+            reliabilityMetrics.recordE2eLatency("rejected", durationSince(requestStartNanos));
             throw e;
         }
+    }
+
+    private static Duration durationSince(long startNanos) {
+        return Duration.ofNanos(System.nanoTime() - startNanos);
     }
 
     private static String normalizeIdempotencyKey(String header) {

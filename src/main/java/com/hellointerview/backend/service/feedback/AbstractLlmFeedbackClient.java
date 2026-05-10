@@ -42,13 +42,14 @@ abstract class AbstractLlmFeedbackClient implements LlmFeedbackClient {
             try {
                 LlmFeedbackResult result = invokeProvider(prompt);
                 metrics.recordCall(provider, model, attempt, "success", durationSince(attemptStartNanos));
+                metrics.recordCallsPerSuccess(provider, model, attempt);
                 if (attempt > 1) {
                     metrics.recordRetryOutcome(provider, model, "success_after_retry");
                 }
                 return result;
             } catch (LlmTimeoutException e) {
                 metrics.recordCall(provider, model, attempt, "failure", durationSince(attemptStartNanos));
-                metrics.recordFailureClass(provider, model, "timeout");
+                metrics.recordFailureClass(provider, model, "provider_timeout");
                 if (attempt == attempts) {
                     if (attempts > 1) {
                         metrics.recordRetryOutcome(provider, model, "exhausted");
@@ -62,10 +63,10 @@ abstract class AbstractLlmFeedbackClient implements LlmFeedbackClient {
             } catch (ResourceAccessException e) {
                 metrics.recordCall(provider, model, attempt, "failure", durationSince(attemptStartNanos));
                 if (!isTimeout(e)) {
-                    metrics.recordFailureClass(provider, model, "network");
+                    metrics.recordFailureClass(provider, model, "unknown");
                     throw new LlmProviderException(providerName() + " network call failed", true, e);
                 }
-                metrics.recordFailureClass(provider, model, "timeout");
+                metrics.recordFailureClass(provider, model, "provider_timeout");
                 if (attempt == attempts) {
                     if (attempts > 1) {
                         metrics.recordRetryOutcome(provider, model, "exhausted");

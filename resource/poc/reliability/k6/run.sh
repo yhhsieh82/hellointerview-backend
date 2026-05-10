@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Lab prerequisite:
+#   Start backend with stub provider before running this script, e.g.
+#   LLM_PROVIDER=stub mvn spring-boot:run
+# This keeps scenario runs provider-deterministic and avoids accidental Ollama/Gemini traffic.
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../../../../" && pwd)"
 

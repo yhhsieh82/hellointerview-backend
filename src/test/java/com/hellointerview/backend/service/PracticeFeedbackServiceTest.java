@@ -20,8 +20,10 @@ import com.hellointerview.backend.service.feedback.FeedbackClaimResult;
 import com.hellointerview.backend.service.feedback.FeedbackIdempotencyCoordinator;
 import com.hellointerview.backend.service.feedback.LlmFeedbackClient;
 import com.hellointerview.backend.service.feedback.LlmFeedbackInput;
- import com.hellointerview.backend.service.feedback.LlmProviderException;
 import com.hellointerview.backend.service.feedback.LlmFeedbackResult;
+import com.hellointerview.backend.service.feedback.LlmProviderException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,15 +60,18 @@ class PracticeFeedbackServiceTest {
 
     private PracticeFeedbackService service;
     private Practice practice;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         service = new PracticeFeedbackService(
                 practiceRepository,
                 transcriptSegmentRepository,
                 idempotencyCoordinator,
                 llmFeedbackClient,
-                new ObjectMapper()
+                new ObjectMapper(),
+                meterRegistry
         );
         practice = buildPracticeWithWhiteboard(789L, 333L, 456L, 1, false);
     }
@@ -124,6 +129,12 @@ class PracticeFeedbackServiceTest {
 
         assertEquals(2002L, dto.feedback().practiceFeedbackId());
         verify(idempotencyCoordinator).finalizeSuccessful(eq(42L), eq(practice), any(LlmFeedbackResult.class));
+        assertEquals(1.0, totalCounter("feedback_requests_total", "outcome", "accepted"));
+        assertEquals(1.0, totalCounter("feedback_requests_total", "outcome", "success"));
+        assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "claim").summaries().size());
+        assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "provider").summaries().size());
+        assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "finalize").summaries().size());
+        assertEquals(1.0, meterRegistry.find("feedback_e2e_completion_latency_ms").tag("outcome", "success").summaries().size());
     }
 
     @Test
@@ -146,6 +157,8 @@ class PracticeFeedbackServiceTest {
 
         assertThrows(FeedbackInProgressException.class, () -> service.submitFeedback(789L, "k4"));
         verify(llmFeedbackClient, never()).generate(any());
+        assertEquals(1.0, totalCounter("feedback_requests_total", "outcome", "rejected"));
+        assertEquals(1.0, meterRegistry.find("feedback_e2e_completion_latency_ms").tag("outcome", "rejected").summaries().size());
     }
 
     @Test
@@ -160,6 +173,8 @@ class PracticeFeedbackServiceTest {
 
         verify(idempotencyCoordinator).markRequestFailed(99L, "llm_timeout");
         verify(idempotencyCoordinator, never()).finalizeSuccessful(anyLong(), any(), any());
+        assertEquals(1.0, totalCounter("feedback_requests_total", "outcome", "degraded"));
+        assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "finalize").summaries().size());
     }
 
     @Test
@@ -259,5 +274,14 @@ class PracticeFeedbackServiceTest {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("section_" + section, sectionMap);
         return root;
+    }
+
+    private double totalCounter(String meterName, String... tags) {
+        return meterRegistry.find(meterName)
+                .tags(tags)
+                .counters()
+                .stream()
+                .mapToDouble(Counter::count)
+                .sum();
     }
 }

@@ -1,0 +1,2 @@
+run_id,strategy_id,scenario_id,total_requests,status,count,ratio
+t5-local-s5-stub-rerun,A,S5,7293,200,7293,1.000000

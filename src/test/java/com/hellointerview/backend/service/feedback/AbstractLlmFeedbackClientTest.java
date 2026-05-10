@@ -31,6 +31,10 @@ class AbstractLlmFeedbackClientTest {
         assertEquals(2, calls.get());
         assertEquals("Recovered", result.feedbackText());
         assertEquals(77.0, result.score());
+        assertEquals(2.0, client.registry.get("llm_provider_calls_per_success")
+                .tag("provider", "TestProvider")
+                .summary()
+                .totalAmount());
         assertEquals(1.0, client.registry.get("llm_provider_retry_outcome_total")
                 .tag("provider", "TestProvider")
                 .tag("outcome", "success_after_retry")
@@ -47,7 +51,7 @@ class AbstractLlmFeedbackClientTest {
         assertThrows(LlmTimeoutException.class, () -> client.generate(input()));
         assertEquals(2.0, client.registry.get("llm_provider_failures_total")
                 .tag("provider", "TestProvider")
-                .tag("failure_class", "timeout")
+                .tag("failure_class", "provider_timeout")
                 .counter()
                 .count());
         assertEquals(1.0, client.registry.get("llm_provider_retry_outcome_total")
@@ -66,7 +70,7 @@ class AbstractLlmFeedbackClientTest {
         assertThrows(LlmProviderException.class, () -> client.generate(input()));
         assertEquals(1.0, client.registry.get("llm_provider_failures_total")
                 .tag("provider", "TestProvider")
-                .tag("failure_class", "terminal_request")
+                .tag("failure_class", "unknown")
                 .counter()
                 .count());
     }

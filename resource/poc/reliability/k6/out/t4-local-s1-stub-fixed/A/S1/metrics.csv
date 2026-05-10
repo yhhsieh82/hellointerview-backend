@@ -1,0 +1,2 @@
+run_id,strategy_id,scenario_id,total_requests,status,count,ratio
+t4-local-s1-stub-fixed,A,S1,15210,200,15210,1.000000

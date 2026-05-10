@@ -52,6 +52,14 @@ class StubLlmFeedbackClientTest {
 
         assertTrue(ex.isTransientFailure());
         assertEquals(2.0, totalCounter("llm_provider_calls_total"));
+        assertEquals(2.0, meterRegistry.find("llm_provider_calls_total")
+                .tag("strategy_id", "A")
+                .tag("scenario_id", "S1")
+                .tag("run_id", "run-local")
+                .counters()
+                .stream()
+                .mapToDouble(Counter::count)
+                .sum());
     }
 
     @Test
@@ -79,7 +87,9 @@ class StubLlmFeedbackClientTest {
 
     private void setRequestHeaders(String strategyId, String faultMode) {
         MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Lab-Run-Id", "run-local");
         request.addHeader("X-Lab-Strategy-Id", strategyId);
+        request.addHeader("X-Lab-Scenario-Id", "S1");
         request.addHeader("X-Lab-Fault-Mode", faultMode);
         request.addHeader("X-Lab-Fault-Start-Sec", "0");
         request.addHeader("X-Lab-Fault-End-Sec", "300");

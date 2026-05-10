@@ -1,0 +1,15 @@
+{
+  "run_id": "t6-smoke",
+  "base_url": "http://localhost:8000",
+  "practice_id": "1001",
+  "strategies": [
+    "A"
+  ],
+  "scenarios": [
+    "S1"
+  ],
+  "resume": false,
+  "stop_on_failure": true,
+  "started_at": "2026-05-09T08:50:19Z",
+  "ended_at": "2026-05-09T08:54:20Z"
+}
