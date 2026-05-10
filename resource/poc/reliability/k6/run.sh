@@ -22,6 +22,31 @@ mkdir -p "${RUN_DIR}"
 SUMMARY_JSON="${RUN_DIR}/summary.json"
 REQUESTS_NDJSON="${RUN_DIR}/requests.ndjson"
 METRICS_CSV="${RUN_DIR}/metrics.csv"
+METRICS_BEFORE_JSON="${RUN_DIR}/metrics-before.json"
+METRICS_AFTER_JSON="${RUN_DIR}/metrics-after.json"
+EXPERIMENT_SUMMARY_CSV="${OUTPUT_DIR}/${RUN_ID}/experiment_summary.csv"
+T7_HEADERS="${ROOT_DIR}/resource/poc/reliability/artifacts/t7/experiment_summary.headers.csv"
+COLLECTOR_PY="${SCRIPT_DIR}/collect-experiment-row.py"
+LAB_SKIP_EXPERIMENT_SUMMARY="${LAB_SKIP_EXPERIMENT_SUMMARY:-0}"
+
+if [[ "${LAB_SKIP_EXPERIMENT_SUMMARY}" != "1" ]]; then
+  if [[ -n "${LAB_CELL_WINDOW_START_UTC:-}" ]]; then
+    WINDOW_START_UTC="${LAB_CELL_WINDOW_START_UTC}"
+  else
+    WINDOW_START_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  fi
+  if python3 "${COLLECTOR_PY}" snapshot \
+    --base-url "${BASE_URL}" \
+    --run-id "${RUN_ID}" \
+    --strategy-id "${STRATEGY_ID}" \
+    --scenario-id "${SCENARIO_ID}" \
+    --out "${METRICS_BEFORE_JSON}"; then
+    :
+  else
+    echo "Warning: metrics snapshot (before) failed; experiment_summary row will be skipped." >&2
+    LAB_SKIP_EXPERIMENT_SUMMARY=1
+  fi
+fi
 
 echo "Running k6 scenario=${SCENARIO_ID} strategy=${STRATEGY_ID} run_id=${RUN_ID}"
 k6 run \
@@ -65,6 +90,31 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
         ratio = (count / total) if total else 0.0
         writer.writerow([run_id, strategy_id, scenario_id, total, status, count, f"{ratio:.6f}"])
 PY
+
+if [[ "${LAB_SKIP_EXPERIMENT_SUMMARY}" != "1" ]]; then
+  WINDOW_END_UTC="${LAB_CELL_WINDOW_END_UTC:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}"
+  if python3 "${COLLECTOR_PY}" snapshot \
+    --base-url "${BASE_URL}" \
+    --run-id "${RUN_ID}" \
+    --strategy-id "${STRATEGY_ID}" \
+    --scenario-id "${SCENARIO_ID}" \
+    --out "${METRICS_AFTER_JSON}" \
+    && [[ -f "${METRICS_BEFORE_JSON}" ]]; then
+    python3 "${COLLECTOR_PY}" append-row \
+      --before "${METRICS_BEFORE_JSON}" \
+      --after "${METRICS_AFTER_JSON}" \
+      --summary "${SUMMARY_JSON}" \
+      --window-start "${WINDOW_START_UTC}" \
+      --window-end "${WINDOW_END_UTC}" \
+      --run-id "${RUN_ID}" \
+      --strategy-id "${STRATEGY_ID}" \
+      --scenario-id "${SCENARIO_ID}" \
+      --output-csv "${EXPERIMENT_SUMMARY_CSV}" \
+      --headers "${T7_HEADERS}" || echo "Warning: experiment_summary append-row failed." >&2
+  else
+    echo "Warning: metrics snapshot (after) missing or failed; skipping experiment_summary row." >&2
+  fi
+fi
 
 echo "Artifacts written to ${RUN_DIR}"
 
