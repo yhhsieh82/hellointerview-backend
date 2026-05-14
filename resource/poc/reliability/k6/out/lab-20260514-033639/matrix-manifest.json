@@ -1,0 +1,15 @@
+{
+  "run_id": "lab-20260514-033639",
+  "base_url": "http://localhost:8000",
+  "practice_id": "1",
+  "strategies": [
+    "A"
+  ],
+  "scenarios": [
+    "S1"
+  ],
+  "resume": false,
+  "stop_on_failure": true,
+  "started_at": "2026-05-14T03:36:40Z",
+  "ended_at": "2026-05-14T03:41:11Z"
+}

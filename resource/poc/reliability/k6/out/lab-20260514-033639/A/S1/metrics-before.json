@@ -1,0 +1,10 @@
+{
+  "_resolved": {
+    "feedback_requests": null,
+    "llm_calls": null,
+    "retry_outcome": null
+  },
+  "feedback_requests_total": {},
+  "llm_provider_calls_total": 0.0,
+  "llm_provider_retry_outcome_total": {}
+}

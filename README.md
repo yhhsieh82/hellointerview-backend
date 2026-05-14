@@ -1,7 +1,7 @@
 # HelloInterview Backend
 
-![CI](https://github.com/yhhsieh82/hellointerview-backend/workflows/CI/badge.svg)
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+CI
+License: MIT
 
 Backend service for HelloInterview system design practice platform.
 
@@ -72,6 +72,7 @@ hellointerview-backend/
 ## Database Schema
 
 ### question_main table
+
 - `question_main_id` (BIGSERIAL, PK)
 - `name` (VARCHAR(200), NOT NULL)
 - `description` (TEXT)
@@ -80,6 +81,7 @@ hellointerview-backend/
 - `updated_at` (TIMESTAMP, NOT NULL)
 
 ### question table
+
 - `question_id` (BIGSERIAL, PK)
 - `question_main_id` (BIGINT, FK, NOT NULL)
 - `order` (INTEGER, NOT NULL)
@@ -95,6 +97,7 @@ hellointerview-backend/
 ## Setup Instructions
 
 ### Prerequisites
+
 - Java 21
 - PostgreSQL 14+
 - Maven (or use included wrapper)
@@ -143,15 +146,18 @@ Configuration is in `src/main/resources/application.yml`.
 
 You can override database settings using environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_HOST` | `localhost` | PostgreSQL host |
-| `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_NAME` | `hellointerview` | Database name |
-| `DB_USER` | `postgres` | Database username |
-| `DB_PASSWORD` | `password` | Database password |
+
+| Variable      | Default          | Description       |
+| ------------- | ---------------- | ----------------- |
+| `DB_HOST`     | `localhost`      | PostgreSQL host   |
+| `DB_PORT`     | `5432`           | PostgreSQL port   |
+| `DB_NAME`     | `hellointerview` | Database name     |
+| `DB_USER`     | `postgres`       | Database username |
+| `DB_PASSWORD` | `password`       | Database password |
+
 
 **Example**:
+
 ```bash
 export DB_HOST=production.db.com
 export DB_PASSWORD=secure_password
@@ -159,20 +165,22 @@ export DB_PASSWORD=secure_password
 ```
 
 ### Other Settings
+
 - **Server Port**: `8000`
 
 ## Next Steps (Manual Testing Required)
 
 The MVP implementation is complete! Next steps:
 
-- [ ] **Step 11**: Start PostgreSQL and run the application
-- [ ] **Step 12**: Manual testing with curl/Postman to verify endpoints work end-to-end
+- **Step 11**: Start PostgreSQL and run the application
+- **Step 12**: Manual testing with curl/Postman to verify endpoints work end-to-end
 
 ## API Specification
 
 **Endpoint**: `GET /api/v1/question-mains/{id}` ✅ **IMPLEMENTED**
 
 **Response (200 OK)**:
+
 ```json
 {
   "question_main_id": 1,
@@ -198,6 +206,7 @@ The MVP implementation is complete! Next steps:
 ```
 
 **Error Response (404 Not Found)**:
+
 ```json
 {
   "error": "Resource not found",
@@ -206,6 +215,7 @@ The MVP implementation is complete! Next steps:
 ```
 
 **Error Response (400 Bad Request)** - Invalid ID format:
+
 ```json
 {
   "error": "Bad request",
@@ -228,9 +238,9 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## References
 
-- Foundation PRD: [`resource/prds/00-foundation.md`](resource/prds/00-foundation.md)
-- Practice Session Management PRD: [`resource/prds/01-practice-session-management.md`](resource/prds/01-practice-session-management.md)
-- Project Rules: [`.cursor/rules/rule.md`](.cursor/rules/rule.md)
+- Foundation PRD: `[resource/prds/00-foundation.md](resource/prds/00-foundation.md)`
+- Practice Session Management PRD: `[resource/prds/01-practice-session-management.md](resource/prds/01-practice-session-management.md)`
+- Project Rules: `[.cursor/rules/rule.md](.cursor/rules/rule.md)`
 
 ## License
 

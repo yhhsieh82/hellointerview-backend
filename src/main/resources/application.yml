@@ -74,3 +74,7 @@ ai:
       backoff-multiplier: ${STUB_BACKOFF_MULTIPLIER:2.0}
       max-jitter-millis: ${STUB_MAX_JITTER_MILLIS:250}
       latency-delay-millis: ${STUB_LATENCY_DELAY_MILLIS:3000}
+    feedback:
+      strategy-b-admission:
+        max-concurrent: ${FEEDBACK_STRATEGY_B_MAX_CONCURRENT:8}
+        retry-after-seconds: ${FEEDBACK_STRATEGY_B_RETRY_AFTER_SECONDS:2}

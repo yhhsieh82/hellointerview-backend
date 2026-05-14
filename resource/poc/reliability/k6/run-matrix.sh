@@ -277,6 +277,8 @@ main() {
       RUN_ID="${RUN_ID}" \
       OUTPUT_DIR="${OUTPUT_DIR}" \
       LAB_CELL_WINDOW_START_UTC="${started_at}" \
+      K6_SKIP_THRESHOLDS="${K6_SKIP_THRESHOLDS:-}" \
+      K6_VUS="${K6_VUS:-}" \
       bash "${SCRIPT_DIR}/run.sh"
       local exit_code=$?
       set -e

@@ -85,7 +85,10 @@ final class LlmProviderMetrics {
                 .record(Math.max(0.0, duration.toMillis()));
     }
 
-    void recordFailureClass(String provider, String model, String failureClass) {
+    /**
+     * Records a terminal failure class before any outbound provider attempt (e.g. Strategy B admission reject).
+     */
+    public void recordFailureClass(String provider, String model, String failureClass) {
         if (meterRegistry == null) {
             return;
         }

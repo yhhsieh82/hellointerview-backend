@@ -131,7 +131,7 @@ public class StubLlmFeedbackClient extends AbstractLlmFeedbackClient {
         public int maxAttempts() {
             String strategy = strategyId();
             return switch (strategy) {
-                case "B", "C" -> 1;
+                case "C" -> 1;
                 default -> baseProperties.maxAttempts();
             };
         }

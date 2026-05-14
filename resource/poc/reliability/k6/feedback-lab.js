@@ -42,6 +42,19 @@ function nowSec() {
 
 const testStartEpochSec = nowSec();
 
+const skipThresholdsRaw = (__ENV.K6_SKIP_THRESHOLDS || "").trim().toLowerCase();
+const skipThresholds = skipThresholdsRaw === "1" || skipThresholdsRaw === "true" || skipThresholdsRaw === "yes";
+
+function labThresholds() {
+  if (skipThresholds) {
+    return {};
+  }
+  return {
+    http_req_failed: ["rate<0.5"],
+    http_req_duration: ["p(95)<20000"]
+  };
+}
+
 export const options = {
   scenarios: {
     feedback_lab: {
@@ -55,10 +68,7 @@ export const options = {
       ]
     }
   },
-  thresholds: {
-    http_req_failed: ["rate<0.5"],
-    http_req_duration: ["p(95)<20000"]
-  },
+  thresholds: labThresholds(),
   summaryTrendStats: ["avg", "min", "med", "p(90)", "p(95)", "p(99)", "max", "count"]
 };
 

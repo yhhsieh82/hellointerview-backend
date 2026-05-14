@@ -28,6 +28,11 @@ abstract class AbstractLlmFeedbackClient implements LlmFeedbackClient {
     }
 
     @Override
+    public AdmissionWorkloadKey admissionWorkloadKey() {
+        return new AdmissionWorkloadKey(providerName(), modelName());
+    }
+
+    @Override
     public LlmFeedbackResult generate(LlmFeedbackInput input) throws LlmTimeoutException {
         String prompt = promptTemplate.render(input);
         String provider = providerName();

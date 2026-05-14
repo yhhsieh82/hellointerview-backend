@@ -11,13 +11,16 @@ import com.hellointerview.backend.exception.BadRequestException;
 import com.hellointerview.backend.exception.ConflictException;
 import com.hellointerview.backend.exception.FeedbackInProgressException;
 import com.hellointerview.backend.exception.GradeMappingException;
+import com.hellointerview.backend.exception.LocalCapacityRejectedException;
 import com.hellointerview.backend.exception.LlmTimeoutException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
 import com.hellointerview.backend.service.feedback.DiagramToTextConverter;
+import com.hellointerview.backend.service.feedback.AdmissionEnterOutcome;
 import com.hellointerview.backend.service.feedback.FeedbackClaimResult;
 import com.hellointerview.backend.service.feedback.FeedbackIdempotencyCoordinator;
+import com.hellointerview.backend.service.feedback.FeedbackStrategyBAdmissionGate;
 import com.hellointerview.backend.service.feedback.FeedbackInputFingerprint;
 import com.hellointerview.backend.service.feedback.FeedbackReliabilityMetrics;
 import com.hellointerview.backend.service.feedback.FeedbackSubmitResponseMapper;
@@ -31,6 +34,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class PracticeFeedbackService {
@@ -42,6 +46,7 @@ public class PracticeFeedbackService {
     private final FeedbackIdempotencyCoordinator idempotencyCoordinator;
     private final LlmFeedbackClient llmFeedbackClient;
     private final ObjectMapper objectMapper;
+    private final FeedbackStrategyBAdmissionGate strategyBAdmissionGate;
     private final FeedbackReliabilityMetrics reliabilityMetrics;
 
     public PracticeFeedbackService(PracticeRepository practiceRepository,
@@ -49,12 +54,14 @@ public class PracticeFeedbackService {
                                    FeedbackIdempotencyCoordinator idempotencyCoordinator,
                                    LlmFeedbackClient llmFeedbackClient,
                                    ObjectMapper objectMapper,
+                                   FeedbackStrategyBAdmissionGate strategyBAdmissionGate,
                                    MeterRegistry meterRegistry) {
         this.practiceRepository = practiceRepository;
         this.transcriptSegmentRepository = transcriptSegmentRepository;
         this.idempotencyCoordinator = idempotencyCoordinator;
         this.llmFeedbackClient = llmFeedbackClient;
         this.objectMapper = objectMapper;
+        this.strategyBAdmissionGate = strategyBAdmissionGate;
         this.reliabilityMetrics = FeedbackReliabilityMetrics.fromRegistry(meterRegistry);
     }
 
@@ -121,6 +128,15 @@ public class PracticeFeedbackService {
             throw new IllegalStateException("Unexpected claim result: " + claim);
         }
 
+        AdmissionEnterOutcome admission = strategyBAdmissionGate.tryEnter(llmFeedbackClient);
+        if (!admission.mayProceed()) {
+            idempotencyCoordinator.markRequestFailed(proceed.requestId(), "local_capacity_reject");
+            reliabilityMetrics.recordRequestOutcome("rejected");
+            reliabilityMetrics.recordE2eLatency("rejected", durationSince(requestStartNanos));
+            throw new LocalCapacityRejectedException(
+                    Objects.requireNonNullElse(admission.retryAfterSecondsIfRejected(), 1));
+        }
+
         try {
             long providerStartNanos = System.nanoTime();
             LlmFeedbackResult result = llmFeedbackClient.generate(llmInput);
@@ -155,6 +171,8 @@ public class PracticeFeedbackService {
             reliabilityMetrics.recordRequestOutcome("rejected");
             reliabilityMetrics.recordE2eLatency("rejected", durationSince(requestStartNanos));
             throw e;
+        } finally {
+            strategyBAdmissionGate.leave(admission);
         }
     }
 

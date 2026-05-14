@@ -63,9 +63,20 @@ class StubLlmFeedbackClientTest {
     }
 
     @Test
-    void generate_WhenStrategyB_UsesSingleAttempt() {
+    void generate_WhenStrategyB_UsesBaselineRetryAttemptsForTransientFailures() {
         StubLlmFeedbackClient client = new StubLlmFeedbackClient(meterRegistry, properties, contextResolver);
-        setRequestHeaders("B", "5xx");
+        setRequestHeaders("B", "429");
+
+        LlmProviderException ex = assertThrows(LlmProviderException.class, () -> client.generate(input()));
+
+        assertTrue(ex.isTransientFailure());
+        assertEquals(2.0, totalCounter("llm_provider_calls_total"));
+    }
+
+    @Test
+    void generate_WhenStrategyC_UsesSingleAttempt() {
+        StubLlmFeedbackClient client = new StubLlmFeedbackClient(meterRegistry, properties, contextResolver);
+        setRequestHeaders("C", "5xx");
 
         LlmProviderException ex = assertThrows(LlmProviderException.class, () -> client.generate(input()));
 

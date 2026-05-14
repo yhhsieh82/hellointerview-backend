@@ -76,6 +76,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).headers(headers).body(errorResponse);
     }
 
+    @ExceptionHandler(LocalCapacityRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleLocalCapacityRejected(LocalCapacityRejectedException ex) {
+        logger.warn("Feedback admission capacity reject: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "Service unavailable",
+                ex.getMessage(),
+                "local_capacity_reject"
+        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()));
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).headers(headers).body(errorResponse);
+    }
+
     @ExceptionHandler(LlmTimeoutException.class)
     public ResponseEntity<ErrorResponse> handleLlmTimeout(LlmTimeoutException ex) {
         logger.warn("LLM timeout: {}", ex.getMessage());

@@ -13,11 +13,14 @@ import com.hellointerview.backend.exception.ConflictException;
 import com.hellointerview.backend.exception.FeedbackInProgressException;
 import com.hellointerview.backend.exception.GradeMappingException;
 import com.hellointerview.backend.exception.LlmTimeoutException;
+import com.hellointerview.backend.exception.LocalCapacityRejectedException;
 import com.hellointerview.backend.exception.ResourceNotFoundException;
 import com.hellointerview.backend.repository.PracticeRepository;
 import com.hellointerview.backend.repository.PracticeTranscriptSegmentRepository;
+import com.hellointerview.backend.service.feedback.AdmissionEnterOutcome;
 import com.hellointerview.backend.service.feedback.FeedbackClaimResult;
 import com.hellointerview.backend.service.feedback.FeedbackIdempotencyCoordinator;
+import com.hellointerview.backend.service.feedback.FeedbackStrategyBAdmissionGate;
 import com.hellointerview.backend.service.feedback.LlmFeedbackClient;
 import com.hellointerview.backend.service.feedback.LlmFeedbackInput;
 import com.hellointerview.backend.service.feedback.LlmFeedbackResult;
@@ -42,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +61,8 @@ class PracticeFeedbackServiceTest {
     private FeedbackIdempotencyCoordinator idempotencyCoordinator;
     @Mock
     private LlmFeedbackClient llmFeedbackClient;
+    @Mock
+    private FeedbackStrategyBAdmissionGate strategyBAdmissionGate;
 
     private PracticeFeedbackService service;
     private Practice practice;
@@ -65,12 +71,15 @@ class PracticeFeedbackServiceTest {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
+        lenient().when(strategyBAdmissionGate.tryEnter(any(LlmFeedbackClient.class)))
+                .thenReturn(AdmissionEnterOutcome.bypass());
         service = new PracticeFeedbackService(
                 practiceRepository,
                 transcriptSegmentRepository,
                 idempotencyCoordinator,
                 llmFeedbackClient,
                 new ObjectMapper(),
+                strategyBAdmissionGate,
                 meterRegistry
         );
         practice = buildPracticeWithWhiteboard(789L, 333L, 456L, 1, false);
@@ -135,6 +144,23 @@ class PracticeFeedbackServiceTest {
         assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "provider").summaries().size());
         assertEquals(1.0, meterRegistry.find("feedback_stage_latency_ms").tag("stage", "finalize").summaries().size());
         assertEquals(1.0, meterRegistry.find("feedback_e2e_completion_latency_ms").tag("outcome", "success").summaries().size());
+        verify(strategyBAdmissionGate).leave(any(AdmissionEnterOutcome.class));
+    }
+
+    @Test
+    void submitFeedback_WhenStrategyBAdmissionRejects_MarksFailedAndThrowsWithoutCallingLlm() {
+        when(practiceRepository.findWithMainAndQuestionById(789L)).thenReturn(Optional.of(practice));
+        when(transcriptSegmentRepository.findByPractice_PracticeIdOrderBySegmentOrderAsc(789L)).thenReturn(List.of());
+        when(idempotencyCoordinator.claimOrInsert(eq(456L), eq("k-cap"), eq(practice), any()))
+                .thenReturn(new FeedbackClaimResult.Proceed(42L));
+        when(strategyBAdmissionGate.tryEnter(llmFeedbackClient)).thenReturn(AdmissionEnterOutcome.rejected(3));
+
+        assertThrows(LocalCapacityRejectedException.class, () -> service.submitFeedback(789L, "k-cap"));
+
+        verify(idempotencyCoordinator).markRequestFailed(42L, "local_capacity_reject");
+        verify(llmFeedbackClient, never()).generate(any());
+        verify(strategyBAdmissionGate, never()).leave(any());
+        assertEquals(1.0, totalCounter("feedback_requests_total", "outcome", "rejected"));
     }
 
     @Test
